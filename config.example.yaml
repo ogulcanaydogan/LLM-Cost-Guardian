@@ -1,0 +1,30 @@
+storage:
+  path: ~/.lcg/guardian.db
+
+proxy:
+  listen: ":8080"
+  read_timeout: 30s
+  write_timeout: 60s
+  max_body_size: 10485760  # 10 MB
+  deny_on_exceed: false
+  add_cost_headers: true
+
+alerts:
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: "#llm-costs"
+  webhook:
+    enabled: false
+    url: ""
+    secret: ""
+
+pricing:
+  dir: pricing/
+
+logging:
+  level: info
+  format: json
+
+defaults:
+  project: default

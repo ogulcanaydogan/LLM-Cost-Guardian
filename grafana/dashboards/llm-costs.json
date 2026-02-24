@@ -1,0 +1,175 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": "${DS_SQLITE}",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT SUM(cost_usd) AS total FROM usage_records WHERE timestamp >= datetime('now', '-30 days')",
+          "format": "table"
+        }
+      ],
+      "title": "Total Spend (30d)",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_SQLITE}",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(*) AS total FROM usage_records WHERE timestamp >= datetime('now', '-30 days')",
+          "format": "table"
+        }
+      ],
+      "title": "Total Requests (30d)",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_SQLITE}",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "targets": [
+        {
+          "rawSql": "SELECT SUM(input_tokens + output_tokens) AS total FROM usage_records WHERE timestamp >= datetime('now', '-30 days')",
+          "format": "table"
+        }
+      ],
+      "title": "Total Tokens (30d)",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_SQLITE}",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "targets": [
+        {
+          "rawSql": "SELECT AVG(cost_usd) AS avg_cost FROM usage_records WHERE timestamp >= datetime('now', '-30 days')",
+          "format": "table"
+        }
+      ],
+      "title": "Avg Cost/Request",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_SQLITE}",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "targets": [
+        {
+          "rawSql": "SELECT date(timestamp) AS time, SUM(cost_usd) AS cost FROM usage_records WHERE timestamp >= datetime('now', '-30 days') GROUP BY date(timestamp) ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "title": "Daily Spend",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "${DS_SQLITE}",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "targets": [
+        {
+          "rawSql": "SELECT provider, SUM(cost_usd) AS cost FROM usage_records WHERE timestamp >= datetime('now', '-30 days') GROUP BY provider",
+          "format": "table"
+        }
+      ],
+      "title": "Spend by Provider",
+      "type": "piechart"
+    },
+    {
+      "datasource": "${DS_SQLITE}",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 7,
+      "targets": [
+        {
+          "rawSql": "SELECT model, SUM(cost_usd) AS cost FROM usage_records WHERE timestamp >= datetime('now', '-30 days') GROUP BY model ORDER BY cost DESC LIMIT 10",
+          "format": "table"
+        }
+      ],
+      "title": "Top Models by Cost",
+      "type": "barchart"
+    },
+    {
+      "datasource": "${DS_SQLITE}",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 8,
+      "targets": [
+        {
+          "rawSql": "SELECT project, SUM(cost_usd) AS cost, SUM(input_tokens) AS input_tokens, SUM(output_tokens) AS output_tokens, COUNT(*) AS requests FROM usage_records WHERE timestamp >= datetime('now', '-30 days') GROUP BY project ORDER BY cost DESC",
+          "format": "table"
+        }
+      ],
+      "title": "Cost by Project",
+      "type": "table"
+    },
+    {
+      "datasource": "${DS_SQLITE}",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "id": 9,
+      "targets": [
+        {
+          "rawSql": "SELECT b.name, b.limit_usd, b.current_spend, b.period, b.alert_threshold_pct, ROUND((b.current_spend / b.limit_usd) * 100, 1) AS usage_pct FROM budgets b",
+          "format": "table"
+        }
+      ],
+      "title": "Budget Status",
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["llm", "cost", "guardian"],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_SQLITE",
+        "type": "datasource",
+        "query": "frser-sqlite-datasource"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "title": "LLM Cost Guardian",
+  "uid": "llm-cost-guardian"
+}

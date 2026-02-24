@@ -1,0 +1,17 @@
+{
+  "id": "msg_01XFDUDYJgAACzvnptvVoYEL",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-3.5-sonnet",
+  "content": [
+    {
+      "type": "text",
+      "text": "Here's a hello world function in Go:\n\n```go\npackage main\n\nimport \"fmt\"\n\nfunc helloWorld() {\n\tfmt.Println(\"Hello, World!\")\n}\n\nfunc main() {\n\thelloWorld()\n}\n```"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 42,
+    "output_tokens": 67
+  }
+}
