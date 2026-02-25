@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/tracker"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tracker"
 )
 
 // Handler is a transparent proxy that tracks LLM API costs.

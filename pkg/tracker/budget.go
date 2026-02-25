@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/yapay-ai/llm-cost-guardian/pkg/alerts"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/storage"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/alerts"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/storage"
 )
 
 // BudgetManager handles budget checking and alert dispatching.

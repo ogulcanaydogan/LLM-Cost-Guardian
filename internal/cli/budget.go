@@ -6,7 +6,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/tracker"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tracker"
 )
 
 var budgetCmd = &cobra.Command{

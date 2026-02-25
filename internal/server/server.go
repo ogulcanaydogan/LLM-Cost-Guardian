@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yapay-ai/llm-cost-guardian/pkg/tracker"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tracker"
 )
 
 // Server provides health check and metrics API endpoints.

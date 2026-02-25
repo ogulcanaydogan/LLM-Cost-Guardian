@@ -6,9 +6,9 @@
 
 **Track every token. Control every dollar. Optimize every model choice.**
 
-[![CI](https://github.com/yapay-ai/llm-cost-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/yapay-ai/llm-cost-guardian/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/yapay-ai/llm-cost-guardian)](https://goreportcard.com/report/github.com/yapay-ai/llm-cost-guardian)
-[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A580%25-brightgreen)](https://github.com/yapay-ai/llm-cost-guardian)
+[![CI](https://github.com/ogulcanaydogan/LLM-Cost-Guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/ogulcanaydogan/LLM-Cost-Guardian/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ogulcanaydogan/LLM-Cost-Guardian)](https://goreportcard.com/report/github.com/ogulcanaydogan/LLM-Cost-Guardian)
+[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A580%25-brightgreen)](https://github.com/ogulcanaydogan/LLM-Cost-Guardian)
 [![Go Version](https://img.shields.io/badge/go-%E2%89%A51.25-blue?logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker)](deploy/docker/Dockerfile)
@@ -280,11 +280,11 @@ llm-cost-guardian/
 
 ```bash
 # From source
-go install github.com/yapay-ai/llm-cost-guardian/cmd/lcg@latest
+go install github.com/ogulcanaydogan/LLM-Cost-Guardian/cmd/lcg@latest
 
 # Or build locally
-git clone https://github.com/yapay-ai/llm-cost-guardian.git
-cd llm-cost-guardian
+git clone https://github.com/ogulcanaydogan/LLM-Cost-Guardian.git
+cd LLM-Cost-Guardian
 make build
 ```
 
@@ -565,6 +565,6 @@ Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-Copyright 2026 [YaPAY](https://github.com/yapay-ai)
+Copyright 2026 [Ogulcan Aydogan](https://github.com/ogulcanaydogan)
 
 </div>

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/model"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/model"
 )
 
 func TestPeriodBounds_Daily(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yapay-ai/llm-cost-guardian/internal/config"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/config"
 )
 
 func TestLoad_Defaults(t *testing.T) {

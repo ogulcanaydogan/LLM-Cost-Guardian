@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/yapay-ai/llm-cost-guardian/internal/config"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/alerts"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/providers"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/storage"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/tracker"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/config"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/alerts"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/providers"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/storage"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tracker"
 )
 
 // Version is set at build time via ldflags.

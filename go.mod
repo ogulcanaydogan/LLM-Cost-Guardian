@@ -1,4 +1,4 @@
-module github.com/yapay-ai/llm-cost-guardian
+module github.com/ogulcanaydogan/LLM-Cost-Guardian
 
 go 1.25
 

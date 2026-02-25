@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/model"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/model"
 
 	_ "modernc.org/sqlite"
 )

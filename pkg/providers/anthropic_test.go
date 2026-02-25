@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/providers"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/providers"
 )
 
 func newTestAnthropic(t *testing.T) *providers.Anthropic {

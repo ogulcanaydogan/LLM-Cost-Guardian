@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/yapay-ai/llm-cost-guardian/internal/proxy"
-	"github.com/yapay-ai/llm-cost-guardian/internal/server"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/proxy"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/server"
 )
 
 var proxyCmd = &cobra.Command{

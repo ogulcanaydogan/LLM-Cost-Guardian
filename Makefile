@@ -4,7 +4,7 @@ BINARY_DIR := bin
 GO := go
 GOFLAGS := -race
 VERSION ?= dev
-LDFLAGS := -s -w -X github.com/yapay-ai/llm-cost-guardian/internal/cli.Version=$(VERSION)
+LDFLAGS := -s -w -X github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/cli.Version=$(VERSION)
 
 all: build
 

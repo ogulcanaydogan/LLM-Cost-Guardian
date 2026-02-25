@@ -1,6 +1,6 @@
 package tracker
 
-import "github.com/yapay-ai/llm-cost-guardian/pkg/model"
+import "github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/model"
 
 // Re-export types from model package for convenience.
 type (

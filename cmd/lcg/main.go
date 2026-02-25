@@ -1,6 +1,6 @@
 package main
 
-import "github.com/yapay-ai/llm-cost-guardian/internal/cli"
+import "github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/cli"
 
 func main() {
 	cli.Execute()

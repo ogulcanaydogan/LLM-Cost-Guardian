@@ -3,7 +3,7 @@ package tracker
 import (
 	"fmt"
 
-	"github.com/yapay-ai/llm-cost-guardian/pkg/providers"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/providers"
 )
 
 // CostCalculator computes costs for LLM API usage.

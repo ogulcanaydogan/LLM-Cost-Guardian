@@ -26,7 +26,7 @@ jobs:
       - name: Build binaries
         run: |
           VERSION=${GITHUB_REF_NAME}
-          LDFLAGS="-s -w -X github.com/yapay-ai/llm-cost-guardian/internal/cli.Version=${VERSION}"
+          LDFLAGS="-s -w -X github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/cli.Version=${VERSION}"
 
           for GOOS in linux darwin windows; do
             for GOARCH in amd64 arm64; do

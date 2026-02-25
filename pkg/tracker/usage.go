@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/providers"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/storage"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/providers"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/storage"
 )
 
 // UsageTracker is the main entry point for recording and querying LLM usage.

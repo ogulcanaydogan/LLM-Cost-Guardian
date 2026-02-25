@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 
-	"github.com/yapay-ai/llm-cost-guardian/pkg/model"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/model"
 )
 
 // Storage defines the persistence layer for usage records and budgets.

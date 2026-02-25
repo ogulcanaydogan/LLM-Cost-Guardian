@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/tokenizer"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tokenizer"
 )
 
 func TestCountTokens_OpenAI(t *testing.T) {

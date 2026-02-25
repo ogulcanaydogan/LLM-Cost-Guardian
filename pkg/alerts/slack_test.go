@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/alerts"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/alerts"
 )
 
 func TestSlackNotifier_Name(t *testing.T) {

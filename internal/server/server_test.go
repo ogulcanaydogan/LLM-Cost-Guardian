@@ -11,11 +11,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yapay-ai/llm-cost-guardian/internal/server"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/model"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/providers"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/storage"
-	"github.com/yapay-ai/llm-cost-guardian/pkg/tracker"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/server"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/model"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/providers"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/storage"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tracker"
 )
 
 func setupServer(t *testing.T) *server.Server {
