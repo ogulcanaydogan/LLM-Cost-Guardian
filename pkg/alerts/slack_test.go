@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/alerts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/alerts"
 )
 
 func TestSlackNotifier_Name(t *testing.T) {

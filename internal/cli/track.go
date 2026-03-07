@@ -46,7 +46,7 @@ func runTrack(cmd *cobra.Command, _ []string) error {
 	}
 	defer store.Close()
 
-	record, err := t.Track(cmd.Context(), provider, model, inputTokens, outputTokens, project)
+	record, err := t.Track(commandContext(cmd), provider, model, inputTokens, outputTokens, project)
 	if err != nil {
 		return fmt.Errorf("track usage: %w", err)
 	}

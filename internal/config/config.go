@@ -26,12 +26,12 @@ type StorageConfig struct {
 
 // ProxyConfig defines transparent proxy settings.
 type ProxyConfig struct {
-	Listen        string `mapstructure:"listen"`
-	ReadTimeout   string `mapstructure:"read_timeout"`
-	WriteTimeout  string `mapstructure:"write_timeout"`
-	MaxBodySize   int64  `mapstructure:"max_body_size"`
-	DenyOnExceed  bool   `mapstructure:"deny_on_exceed"`
-	AddCostHeaders bool  `mapstructure:"add_cost_headers"`
+	Listen         string `mapstructure:"listen"`
+	ReadTimeout    string `mapstructure:"read_timeout"`
+	WriteTimeout   string `mapstructure:"write_timeout"`
+	MaxBodySize    int64  `mapstructure:"max_body_size"`
+	DenyOnExceed   bool   `mapstructure:"deny_on_exceed"`
+	AddCostHeaders bool   `mapstructure:"add_cost_headers"`
 }
 
 // AlertsConfig defines alerting integrations.

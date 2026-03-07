@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/config"
 )
 
 func TestLoad_Defaults(t *testing.T) {

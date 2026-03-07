@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/alerts"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/model"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/storage"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tracker"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestBudgetManager(t *testing.T, notifiers []alerts.Notifier) (*tracker.BudgetManager, storage.Storage) {
@@ -41,7 +41,7 @@ func TestBudgetManager_RecordSpend(t *testing.T) {
 	}
 	require.NoError(t, store.SetBudget(ctx, budget))
 
-	err := mgr.RecordSpend(ctx, 25.00)
+	err := mgr.RecordSpend(ctx, "", 25.00)
 	require.NoError(t, err)
 
 	got, err := store.GetBudget(ctx, "test")
@@ -95,7 +95,7 @@ func TestBudgetManager_AlertsTriggered(t *testing.T) {
 	require.NoError(t, store.SetBudget(ctx, budget))
 
 	// Spend 85% - should trigger warning
-	err := mgr.RecordSpend(ctx, 85.00)
+	err := mgr.RecordSpend(ctx, "", 85.00)
 	require.NoError(t, err)
 	assert.True(t, alertSent)
 }
@@ -123,7 +123,7 @@ func TestBudgetManager_NoAlert_UnderThreshold(t *testing.T) {
 	require.NoError(t, store.SetBudget(ctx, budget))
 
 	// Spend 50% - should NOT trigger
-	err := mgr.RecordSpend(ctx, 50.00)
+	err := mgr.RecordSpend(ctx, "", 50.00)
 	require.NoError(t, err)
 	assert.False(t, alertSent)
 }
@@ -171,7 +171,7 @@ func TestBudgetManager_CriticalAlert(t *testing.T) {
 	require.NoError(t, store.SetBudget(ctx, budget))
 
 	// Spend 96% - should trigger critical
-	err := mgr.RecordSpend(ctx, 96.00)
+	err := mgr.RecordSpend(ctx, "", 96.00)
 	require.NoError(t, err)
 	assert.True(t, alertSent)
 }
@@ -199,7 +199,75 @@ func TestBudgetManager_ExceededAlert(t *testing.T) {
 	require.NoError(t, store.SetBudget(ctx, budget))
 
 	// Spend 101% - should trigger exceeded
-	err := mgr.RecordSpend(ctx, 101.00)
+	err := mgr.RecordSpend(ctx, "", 101.00)
 	require.NoError(t, err)
 	assert.True(t, alertSent)
+}
+
+func TestBudgetManager_RecordSpend_ProjectScoped(t *testing.T) {
+	mgr, store := newTestBudgetManager(t, nil)
+	ctx := context.Background()
+
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "global",
+		LimitUSD: 100.00,
+		Period:   model.PeriodMonthly,
+	}))
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "proj-a",
+		Project:  "proj-a",
+		LimitUSD: 100.00,
+		Period:   model.PeriodMonthly,
+	}))
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "proj-b",
+		Project:  "proj-b",
+		LimitUSD: 100.00,
+		Period:   model.PeriodMonthly,
+	}))
+
+	require.NoError(t, mgr.RecordSpend(ctx, "proj-a", 25.00))
+
+	globalBudget, err := store.GetBudget(ctx, "global")
+	require.NoError(t, err)
+	assert.InDelta(t, 25.00, globalBudget.CurrentSpend, 0.001)
+
+	projectABudget, err := store.GetBudget(ctx, "proj-a")
+	require.NoError(t, err)
+	assert.InDelta(t, 25.00, projectABudget.CurrentSpend, 0.001)
+
+	projectBBudget, err := store.GetBudget(ctx, "proj-b")
+	require.NoError(t, err)
+	assert.InDelta(t, 0.0, projectBBudget.CurrentSpend, 0.001)
+}
+
+func TestBudgetManager_CheckApplicable(t *testing.T) {
+	mgr, store := newTestBudgetManager(t, nil)
+	ctx := context.Background()
+
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "global",
+		LimitUSD: 100.00,
+		Period:   model.PeriodMonthly,
+	}))
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "proj-a",
+		Project:  "proj-a",
+		LimitUSD: 100.00,
+		Period:   model.PeriodMonthly,
+	}))
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "proj-b",
+		Project:  "proj-b",
+		LimitUSD: 100.00,
+		Period:   model.PeriodMonthly,
+	}))
+
+	require.NoError(t, store.UpdateBudgetSpend(ctx, "proj-b", 150.00))
+
+	require.NoError(t, mgr.CheckApplicable(ctx, "proj-a"))
+
+	err := mgr.CheckApplicable(ctx, "proj-b")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "proj-b")
 }

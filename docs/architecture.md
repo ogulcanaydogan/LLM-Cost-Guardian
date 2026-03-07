@@ -14,24 +14,24 @@ LLM Cost Guardian operates as a transparent HTTP proxy between client applicatio
 | Token Counter | `pkg/tokenizer` | Counts tokens using tiktoken (OpenAI) or estimation (others) |
 | Cost Calculator | `pkg/tracker` | Computes USD costs from token counts and provider pricing |
 | Usage Tracker | `pkg/tracker` | Orchestrates recording, reporting, and budget checking |
-| Budget Manager | `pkg/tracker` | Enforces spending limits and dispatches threshold alerts |
+| Budget Manager | `pkg/tracker` | Enforces global and project-scoped spending limits and dispatches threshold alerts |
 | Storage | `pkg/storage` | Persists usage records and budgets in SQLite (WAL mode) |
 | Alert System | `pkg/alerts` | Delivers notifications via Slack webhooks or generic HTTP |
 | Proxy Handler | `internal/proxy` | Transparent reverse proxy with cost tracking middleware |
-| API Server | `internal/server` | Health check and metrics REST API |
+| API Server | `internal/server` | Health check and JSON usage/report API |
 | CLI | `internal/cli` | Command-line interface for manual tracking and management |
 
 ### Request Flow
 
 1. Client sends API request to LCG proxy instead of directly to the LLM provider
 2. Proxy reads request body and extracts model name
-3. If `deny_on_exceed` is enabled, proxy checks budget before forwarding
+3. If `deny_on_exceed` is enabled, proxy checks global budgets plus any budget scoped to the request project before forwarding
 4. Request is forwarded to the actual LLM API via `httputil.ReverseProxy`
 5. Response is captured via `ModifyResponse` callback
 6. Token usage is extracted from the API response `usage` field
 7. Cost is calculated using provider pricing data
-8. Usage record is persisted to SQLite asynchronously
-9. Budget spend is updated and thresholds checked
+8. Usage record is persisted to SQLite
+9. Budget spend is updated for applicable global and project budgets and thresholds checked
 10. Cost headers (`X-LLM-Cost`, `X-LLM-Input-Tokens`, `X-LLM-Output-Tokens`) are injected
 11. Response is returned to client
 
@@ -39,7 +39,7 @@ LLM Cost Guardian operates as a transparent HTTP proxy between client applicatio
 
 **usage_records**: Stores individual API call records with provider, model, token counts, cost, project, and timestamp.
 
-**budgets**: Stores spending limits with period (daily/weekly/monthly), alert thresholds, and current spend accumulator.
+**budgets**: Stores spending limits with optional project scope, period (daily/weekly/monthly), alert thresholds, and current spend accumulator.
 
 ### SQLite Design Decisions
 

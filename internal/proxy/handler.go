@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,16 +22,18 @@ import (
 type Handler struct {
 	tracker        *tracker.UsageTracker
 	defaultProject string
+	maxBodySize    int64
 	addHeaders     bool
 	denyOnExceed   bool
 	logger         *slog.Logger
 }
 
 // NewHandler creates a new proxy handler.
-func NewHandler(t *tracker.UsageTracker, defaultProject string, addHeaders, denyOnExceed bool, logger *slog.Logger) *Handler {
+func NewHandler(t *tracker.UsageTracker, defaultProject string, maxBodySize int64, addHeaders, denyOnExceed bool, logger *slog.Logger) *Handler {
 	return &Handler{
 		tracker:        t,
 		defaultProject: defaultProject,
+		maxBodySize:    maxBodySize,
 		addHeaders:     addHeaders,
 		denyOnExceed:   denyOnExceed,
 		logger:         logger,
@@ -53,18 +57,33 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.maxBodySize > 0 && r.ContentLength > h.maxBodySize {
+		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+
+	bodyReader := r.Body
+	if h.maxBodySize > 0 {
+		bodyReader = http.MaxBytesReader(w, r.Body, h.maxBodySize)
+	}
+
 	// Read request body for analysis
-	reqBody, err := io.ReadAll(r.Body)
+	reqBody, err := io.ReadAll(bodyReader)
 	if err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		http.Error(w, "failed to read request body", http.StatusInternalServerError)
 		return
 	}
 	r.Body = io.NopCloser(bytes.NewReader(reqBody))
 
 	// Detect provider and extract request info
-	provider := DetectProvider(target.Host, r.URL.Path)
+	provider := strings.ToLower(strings.TrimSpace(r.Header.Get("X-LCG-Provider")))
 	if provider == "" {
-		provider = r.Header.Get("X-LCG-Provider")
+		provider = DetectProvider(target.Host, r.URL.Path)
 	}
 
 	reqInfo, _ := ExtractRequestInfo(reqBody, provider)
@@ -75,7 +94,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Budget pre-check
 	if h.denyOnExceed {
-		if checkErr := h.tracker.CheckBudget(r.Context()); checkErr != nil {
+		if checkErr := h.tracker.CheckBudgetForProject(r.Context(), project); checkErr != nil {
 			http.Error(w, fmt.Sprintf("budget exceeded: %v", checkErr), http.StatusPaymentRequired)
 			return
 		}

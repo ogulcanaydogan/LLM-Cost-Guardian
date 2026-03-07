@@ -40,6 +40,10 @@ var migrations = []string{
 		version    INTEGER PRIMARY KEY,
 		applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);`,
+	// Migration 2: Add project scope to budgets.
+	`ALTER TABLE budgets ADD COLUMN project TEXT NOT NULL DEFAULT '';
+
+	CREATE INDEX IF NOT EXISTS idx_budgets_project ON budgets(project);`,
 }
 
 // runMigrations applies pending schema migrations.

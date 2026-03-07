@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/model"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/storage"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestDB(t *testing.T) *storage.SQLite {
@@ -137,6 +137,7 @@ func TestSQLite_Budget(t *testing.T) {
 
 	budget := &model.Budget{
 		Name:              "test-budget",
+		Project:           "proj-a",
 		LimitUSD:          100.00,
 		Period:            model.PeriodMonthly,
 		AlertThresholdPct: 80.0,
@@ -148,6 +149,7 @@ func TestSQLite_Budget(t *testing.T) {
 	got, err := db.GetBudget(ctx, "test-budget")
 	require.NoError(t, err)
 	assert.Equal(t, "test-budget", got.Name)
+	assert.Equal(t, "proj-a", got.Project)
 	assert.Equal(t, 100.00, got.LimitUSD)
 	assert.Equal(t, model.PeriodMonthly, got.Period)
 	assert.Equal(t, 80.0, got.AlertThresholdPct)
@@ -160,6 +162,7 @@ func TestSQLite_Budget_Update(t *testing.T) {
 
 	budget := &model.Budget{
 		Name:              "update-test",
+		Project:           "proj-a",
 		LimitUSD:          50.00,
 		Period:            model.PeriodDaily,
 		AlertThresholdPct: 75.0,
@@ -168,11 +171,13 @@ func TestSQLite_Budget_Update(t *testing.T) {
 
 	// Update with same name should upsert
 	budget.LimitUSD = 100.00
+	budget.Project = "proj-b"
 	require.NoError(t, db.SetBudget(ctx, budget))
 
 	got, err := db.GetBudget(ctx, "update-test")
 	require.NoError(t, err)
 	assert.Equal(t, 100.00, got.LimitUSD)
+	assert.Equal(t, "proj-b", got.Project)
 }
 
 func TestSQLite_UpdateBudgetSpend(t *testing.T) {
@@ -208,7 +213,7 @@ func TestSQLite_ListBudgets(t *testing.T) {
 	ctx := context.Background()
 
 	budgets := []*model.Budget{
-		{Name: "budget-a", LimitUSD: 50.00, Period: model.PeriodDaily},
+		{Name: "budget-a", Project: "proj-a", LimitUSD: 50.00, Period: model.PeriodDaily},
 		{Name: "budget-b", LimitUSD: 100.00, Period: model.PeriodMonthly},
 	}
 	for _, b := range budgets {
@@ -218,6 +223,8 @@ func TestSQLite_ListBudgets(t *testing.T) {
 	list, err := db.ListBudgets(ctx)
 	require.NoError(t, err)
 	assert.Len(t, list, 2)
+	assert.Equal(t, "proj-a", list[0].Project)
+	assert.Equal(t, "", list[1].Project)
 }
 
 func TestSQLite_GetBudget_NotFound(t *testing.T) {

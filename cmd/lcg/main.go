@@ -2,6 +2,6 @@ package main
 
 import "github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/cli"
 
-func main() {
-	cli.Execute()
-}
+var execute = cli.Execute
+
+func main() { execute() }

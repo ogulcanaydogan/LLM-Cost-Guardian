@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/providers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/providers"
 )
 
 func TestLoadPricing(t *testing.T) {

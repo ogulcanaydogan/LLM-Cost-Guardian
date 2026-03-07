@@ -64,7 +64,7 @@ func (t *UsageTracker) Track(ctx context.Context, providerName, model string, in
 
 	// Check budgets
 	if t.budget != nil {
-		if checkErr := t.budget.RecordSpend(ctx, record.CostUSD); checkErr != nil {
+		if checkErr := t.budget.RecordSpend(ctx, record.Project, record.CostUSD); checkErr != nil {
 			t.logger.Error("budget check failed", "error", checkErr)
 		}
 	}
@@ -96,7 +96,7 @@ func (t *UsageTracker) TrackWithTokens(ctx context.Context, record *UsageRecord)
 
 	// Check budgets
 	if t.budget != nil {
-		if checkErr := t.budget.RecordSpend(ctx, record.CostUSD); checkErr != nil {
+		if checkErr := t.budget.RecordSpend(ctx, record.Project, record.CostUSD); checkErr != nil {
 			t.logger.Error("budget check failed", "error", checkErr)
 		}
 	}
@@ -116,8 +116,13 @@ func (t *UsageTracker) Query(ctx context.Context, filter ReportFilter) ([]UsageR
 
 // CheckBudget verifies if spending is within budget limits. Returns an error if any budget is exceeded.
 func (t *UsageTracker) CheckBudget(ctx context.Context) error {
+	return t.CheckBudgetForProject(ctx, "")
+}
+
+// CheckBudgetForProject verifies if applicable budgets are within limits for the given project.
+func (t *UsageTracker) CheckBudgetForProject(ctx context.Context, project string) error {
 	if t.budget == nil {
 		return nil
 	}
-	return t.budget.CheckAll(ctx)
+	return t.budget.CheckApplicable(ctx, project)
 }

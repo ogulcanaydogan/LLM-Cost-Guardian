@@ -5,8 +5,8 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/spf13/cobra"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tracker"
+	"github.com/spf13/cobra"
 )
 
 var reportCmd = &cobra.Command{
@@ -54,7 +54,7 @@ func runReport(cmd *cobra.Command, _ []string) error {
 		EndTime:   end,
 	}
 
-	summary, err := t.Report(cmd.Context(), filter)
+	summary, err := t.Report(commandContext(cmd), filter)
 	if err != nil {
 		return fmt.Errorf("generate report: %w", err)
 	}
@@ -87,7 +87,7 @@ func runReport(cmd *cobra.Command, _ []string) error {
 	}
 
 	if detailed {
-		records, err := t.Query(cmd.Context(), filter)
+		records, err := t.Query(commandContext(cmd), filter)
 		if err != nil {
 			return fmt.Errorf("query records: %w", err)
 		}

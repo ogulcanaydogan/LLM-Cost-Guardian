@@ -3,10 +3,10 @@ package tracker_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/providers"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tracker"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestRegistry(t *testing.T) *providers.Registry {
@@ -45,25 +45,25 @@ func TestCalculateCost(t *testing.T) {
 		expected     float64
 	}{
 		{
-			name: "gpt-4o 1M tokens",
+			name:     "gpt-4o 1M tokens",
 			provider: "openai", model: "gpt-4o",
 			inputTokens: 1_000_000, outputTokens: 1_000_000,
 			expected: 2.50 + 10.00,
 		},
 		{
-			name: "gpt-4o-mini small",
+			name:     "gpt-4o-mini small",
 			provider: "openai", model: "gpt-4o-mini",
 			inputTokens: 1000, outputTokens: 500,
 			expected: (0.15 * 1000 / 1_000_000) + (0.60 * 500 / 1_000_000),
 		},
 		{
-			name: "claude-3.5-sonnet",
+			name:     "claude-3.5-sonnet",
 			provider: "anthropic", model: "claude-3.5-sonnet",
 			inputTokens: 10000, outputTokens: 2000,
 			expected: (3.00 * 10000 / 1_000_000) + (15.00 * 2000 / 1_000_000),
 		},
 		{
-			name: "zero tokens",
+			name:     "zero tokens",
 			provider: "openai", model: "gpt-4o",
 			inputTokens: 0, outputTokens: 0,
 			expected: 0,

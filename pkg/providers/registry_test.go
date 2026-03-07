@@ -3,9 +3,9 @@ package providers_test
 import (
 	"testing"
 
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/providers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/providers"
 )
 
 func TestRegistry_RegisterAndGet(t *testing.T) {

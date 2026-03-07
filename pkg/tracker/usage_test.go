@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/model"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/storage"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tracker"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestTracker(t *testing.T) (*tracker.UsageTracker, storage.Storage) {
@@ -124,4 +124,73 @@ func TestUsageTracker_CheckBudget(t *testing.T) {
 	// No budgets, should pass
 	err := ut.CheckBudget(ctx)
 	require.NoError(t, err)
+}
+
+func TestUsageTracker_Track_ProjectScopedBudgets(t *testing.T) {
+	ut, store := newTestTracker(t)
+	ctx := context.Background()
+
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "global",
+		LimitUSD: 100.00,
+		Period:   model.PeriodMonthly,
+	}))
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "proj-a",
+		Project:  "proj-a",
+		LimitUSD: 100.00,
+		Period:   model.PeriodMonthly,
+	}))
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "proj-b",
+		Project:  "proj-b",
+		LimitUSD: 100.00,
+		Period:   model.PeriodMonthly,
+	}))
+
+	record, err := ut.Track(ctx, "openai", "gpt-4o", 1000, 500, "proj-a")
+	require.NoError(t, err)
+	assert.Greater(t, record.CostUSD, 0.0)
+
+	globalBudget, err := store.GetBudget(ctx, "global")
+	require.NoError(t, err)
+	assert.InDelta(t, record.CostUSD, globalBudget.CurrentSpend, 0.000001)
+
+	projectABudget, err := store.GetBudget(ctx, "proj-a")
+	require.NoError(t, err)
+	assert.InDelta(t, record.CostUSD, projectABudget.CurrentSpend, 0.000001)
+
+	projectBBudget, err := store.GetBudget(ctx, "proj-b")
+	require.NoError(t, err)
+	assert.InDelta(t, 0.0, projectBBudget.CurrentSpend, 0.000001)
+}
+
+func TestUsageTracker_CheckBudgetForProject(t *testing.T) {
+	ut, store := newTestTracker(t)
+	ctx := context.Background()
+
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "global",
+		LimitUSD: 100.00,
+		Period:   model.PeriodMonthly,
+	}))
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "proj-a",
+		Project:  "proj-a",
+		LimitUSD: 100.00,
+		Period:   model.PeriodMonthly,
+	}))
+	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Name:     "proj-b",
+		Project:  "proj-b",
+		LimitUSD: 50.00,
+		Period:   model.PeriodMonthly,
+	}))
+	require.NoError(t, store.UpdateBudgetSpend(ctx, "proj-b", 75.00))
+
+	require.NoError(t, ut.CheckBudgetForProject(ctx, "proj-a"))
+
+	err := ut.CheckBudgetForProject(ctx, "proj-b")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "proj-b")
 }

@@ -28,6 +28,7 @@ const (
 type Budget struct {
 	ID                string       `json:"id" db:"id"`
 	Name              string       `json:"name" db:"name"`
+	Project           string       `json:"project,omitempty" db:"project"`
 	LimitUSD          float64      `json:"limit_usd" db:"limit_usd"`
 	Period            BudgetPeriod `json:"period" db:"period"`
 	CurrentSpend      float64      `json:"current_spend" db:"current_spend"`

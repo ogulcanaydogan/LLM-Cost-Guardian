@@ -163,6 +163,7 @@ func (s *SQLite) SetBudget(ctx context.Context, budget *model.Budget) error {
 	if budget.ID == "" {
 		budget.ID = uuid.New().String()
 	}
+	budget.Project = strings.TrimSpace(budget.Project)
 	now := time.Now().UTC()
 	if budget.CreatedAt.IsZero() {
 		budget.CreatedAt = now
@@ -170,14 +171,15 @@ func (s *SQLite) SetBudget(ctx context.Context, budget *model.Budget) error {
 	budget.UpdatedAt = now
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO budgets (id, name, limit_usd, period, current_spend, alert_threshold_pct, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO budgets (id, name, project, limit_usd, period, current_spend, alert_threshold_pct, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(name) DO UPDATE SET
+		   project = excluded.project,
 		   limit_usd = excluded.limit_usd,
 		   period = excluded.period,
 		   alert_threshold_pct = excluded.alert_threshold_pct,
 		   updated_at = excluded.updated_at`,
-		budget.ID, budget.Name, budget.LimitUSD, budget.Period,
+		budget.ID, budget.Name, budget.Project, budget.LimitUSD, budget.Period,
 		budget.CurrentSpend, budget.AlertThresholdPct, budget.CreatedAt, budget.UpdatedAt,
 	)
 	if err != nil {
@@ -189,9 +191,9 @@ func (s *SQLite) SetBudget(ctx context.Context, budget *model.Budget) error {
 func (s *SQLite) GetBudget(ctx context.Context, name string) (*model.Budget, error) {
 	var b model.Budget
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, limit_usd, period, current_spend, alert_threshold_pct, created_at, updated_at
+		`SELECT id, name, project, limit_usd, period, current_spend, alert_threshold_pct, created_at, updated_at
 		 FROM budgets WHERE name = ?`, name,
-	).Scan(&b.ID, &b.Name, &b.LimitUSD, &b.Period, &b.CurrentSpend,
+	).Scan(&b.ID, &b.Name, &b.Project, &b.LimitUSD, &b.Period, &b.CurrentSpend,
 		&b.AlertThresholdPct, &b.CreatedAt, &b.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("budget %q not found", name)
@@ -204,7 +206,7 @@ func (s *SQLite) GetBudget(ctx context.Context, name string) (*model.Budget, err
 
 func (s *SQLite) ListBudgets(ctx context.Context) ([]model.Budget, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, limit_usd, period, current_spend, alert_threshold_pct, created_at, updated_at
+		`SELECT id, name, project, limit_usd, period, current_spend, alert_threshold_pct, created_at, updated_at
 		 FROM budgets ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("list budgets: %w", err)
@@ -214,7 +216,7 @@ func (s *SQLite) ListBudgets(ctx context.Context) ([]model.Budget, error) {
 	var budgets []model.Budget
 	for rows.Next() {
 		var b model.Budget
-		if err := rows.Scan(&b.ID, &b.Name, &b.LimitUSD, &b.Period, &b.CurrentSpend,
+		if err := rows.Scan(&b.ID, &b.Name, &b.Project, &b.LimitUSD, &b.Period, &b.CurrentSpend,
 			&b.AlertThresholdPct, &b.CreatedAt, &b.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan budget row: %w", err)
 		}

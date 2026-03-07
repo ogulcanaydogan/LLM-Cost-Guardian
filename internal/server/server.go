@@ -10,7 +10,7 @@ import (
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tracker"
 )
 
-// Server provides health check and metrics API endpoints.
+// Server provides health check and JSON usage API endpoints.
 type Server struct {
 	tracker *tracker.UsageTracker
 	mux     *http.ServeMux

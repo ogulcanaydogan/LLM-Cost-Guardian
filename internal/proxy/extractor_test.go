@@ -3,9 +3,9 @@ package proxy_test
 import (
 	"testing"
 
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/proxy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/proxy"
 )
 
 func TestDetectProvider(t *testing.T) {

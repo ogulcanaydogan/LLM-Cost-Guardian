@@ -139,8 +139,8 @@ type openAIMessage struct {
 }
 
 type openAIResponse struct {
-	Model string       `json:"model"`
-	Usage openAIUsage  `json:"usage"`
+	Model string      `json:"model"`
+	Usage openAIUsage `json:"usage"`
 }
 
 type openAIUsage struct {
@@ -163,8 +163,8 @@ type anthropicMessage struct {
 }
 
 type anthropicResponse struct {
-	Model string          `json:"model"`
-	Usage anthropicUsage  `json:"usage"`
+	Model string         `json:"model"`
+	Usage anthropicUsage `json:"usage"`
 }
 
 type anthropicUsage struct {

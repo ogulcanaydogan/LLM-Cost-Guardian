@@ -67,6 +67,7 @@ LLM Cost Guardian solves this by providing a **transparent cost tracking layer**
 
 **Budget Management**
 - Daily, weekly, and monthly spending limits
+- Global and project-scoped budget support
 - Configurable alert thresholds (e.g., 80%, 95%)
 - Optional request blocking when budget exceeded
 - Multi-budget support for different teams/projects
@@ -80,7 +81,8 @@ LLM Cost Guardian solves this by providing a **transparent cost tracking layer**
 - Drop-in reverse proxy for LLM APIs
 - Cost headers injected into every response
 - Automatic provider detection from request URL
-- Non-blocking async usage recording
+- Explicit provider overrides via `X-LCG-Provider`
+- Request body limits enforced before upstream calls
 
 </td>
 <td>
@@ -169,7 +171,7 @@ sequenceDiagram
     Note over Proxy: Extract model & provider
 
     opt deny_on_exceed enabled
-        Proxy->>Budget: Check remaining budget
+        Proxy->>Budget: Check remaining applicable budget
         Budget-->>Proxy: OK / Exceeded
     end
 
@@ -183,8 +185,8 @@ sequenceDiagram
 
     Proxy-->>App: Response + X-LLM-Cost headers
 
-    Proxy--)DB: Record usage (async)
-    Proxy--)Budget: Update spend (async)
+    Proxy->>DB: Record usage
+    Proxy->>Budget: Update spend
 
     opt Threshold crossed
         Budget--)Alert: Dispatch notification
@@ -325,13 +327,14 @@ export OPENAI_BASE_URL=http://localhost:8080
 ### Set Budget
 
 ```bash
-# Set a monthly budget of $100 with alert at 80%
-lcg budget set --name production --limit 100 --period monthly --alert-at 80
+# Set a monthly budget of $100 for a specific project with alert at 80%
+lcg budget set --name production --project my-app --limit 100 --period monthly --alert-at 80
 
 # Check budget status
-lcg budget status
-# NAME        PERIOD   LIMIT    SPENT   REMAINING  USAGE    ALERT AT
-# production  monthly  $100.00  $23.45  $76.55     23.5%    80%
+lcg budget status --project my-app
+# NAME          SCOPE           PERIOD   LIMIT    SPENT   REMAINING  USAGE    ALERT AT
+# production    project:my-app  monthly  $100.00  $23.45  $76.55     23.5%    80%
+# global-cap    global          monthly  $250.00  $23.45  $226.55    9.4%     80%
 ```
 
 ### Generate Report
@@ -421,8 +424,20 @@ response = client.chat.completions.create(
 | Header | Required | Description |
 |--------|----------|------------|
 | `X-LCG-Target` | Yes | Upstream API URL |
-| `X-LCG-Provider` | No | Override provider detection |
+| `X-LCG-Provider` | No | Explicitly override provider detection |
 | `X-LCG-Project` | No | Project name for attribution |
+
+---
+
+## JSON API
+
+The built-in server exposes a small JSON API alongside proxy mode:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /healthz` | Liveness check returning `{"status":"ok"}` |
+| `GET /api/v1/usage` | Raw usage records with optional `provider`, `model`, and `project` filters |
+| `GET /api/v1/summary` | Aggregated usage summary for `daily`, `weekly`, or `monthly` periods |
 
 ---
 
@@ -436,6 +451,7 @@ storage:
 
 proxy:
   listen: ":8080"
+  max_body_size: 10485760
   deny_on_exceed: false
   add_cost_headers: true
 
@@ -461,6 +477,8 @@ export LCG_LOGGING_LEVEL=debug
 ```
 
 Full configuration reference: [docs/configuration.md](docs/configuration.md)
+
+`deny_on_exceed` evaluates global budgets plus any budget scoped to the request project. `max_body_size` returns `413 Payload Too Large` before the request is sent upstream.
 
 ---
 
@@ -492,7 +510,7 @@ Measured on Apple M3 Pro, Go 1.25.
 | Proxy overhead (end-to-end) | < 5ms | - |
 | SQLite write (single record) | ~200μs | ~10 |
 
-The proxy adds **< 10ms** of latency overhead per request, dominated by response body capture and SQLite write. Usage recording is asynchronous and does not block the response.
+The proxy adds **< 10ms** of latency overhead per request, dominated by response body capture and SQLite write.
 
 ---
 
@@ -513,6 +531,20 @@ Build (6 platforms: linux/darwin/windows × amd64/arm64)
     ▼
 Release (on v* tags → GitHub Releases with checksums)
 ```
+
+---
+
+## V1 Smoke Test
+
+- `go build ./...`
+- `go test -race -coverprofile=coverage.out ./...`
+- `lcg proxy start --listen 127.0.0.1:8080`
+- Send one sample OpenAI or Anthropic request through the proxy and confirm `X-LLM-Cost` headers
+- Verify a usage row is written to `guardian.db`
+- Run `lcg report --period daily`
+- Configure a low budget plus webhook/Slack notifier and confirm alert dispatch
+
+Create the `v1.0.0` tag only after CI and this smoke checklist pass cleanly.
 
 ---
 
@@ -545,7 +577,6 @@ Release (on v* tags → GitHub Releases with checksums)
 - [ ] Prompt optimization suggestions
 - [ ] Usage forecasting
 - [ ] Streaming response support (SSE)
-- [ ] v1.0.0 release
 
 ---
 
