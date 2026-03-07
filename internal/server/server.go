@@ -41,7 +41,9 @@ func (s *Server) Handler() http.Handler {
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+		s.logger.Error("encode health response", "error", err)
+	}
 }
 
 func (s *Server) handleUsage(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +64,9 @@ func (s *Server) handleUsage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(records)
+	if err := json.NewEncoder(w).Encode(records); err != nil {
+		s.logger.Error("encode usage response", "error", err)
+	}
 }
 
 func (s *Server) handleSummary(w http.ResponseWriter, r *http.Request) {
@@ -90,5 +94,7 @@ func (s *Server) handleSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(summary)
+	if err := json.NewEncoder(w).Encode(summary); err != nil {
+		s.logger.Error("encode summary response", "error", err)
+	}
 }
