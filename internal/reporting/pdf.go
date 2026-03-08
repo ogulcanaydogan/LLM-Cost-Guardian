@@ -208,7 +208,7 @@ func renderPDFPage(lines []pdfLine, pageNumber, pageCount int) string {
 
 	builder.WriteString("BT\n")
 	builder.WriteString("/F1 9 Tf\n")
-	builder.WriteString(fmt.Sprintf("1 0 0 1 50 30 Tm\n(Page %d of %d) Tj\n", pageNumber, pageCount))
+	fmt.Fprintf(&builder, "1 0 0 1 50 30 Tm\n(Page %d of %d) Tj\n", pageNumber, pageCount)
 	builder.WriteString("ET\n")
 	return builder.String()
 }
@@ -240,18 +240,18 @@ func assemblePDF(pageStreams []string) []byte {
 	offsets := make([]int, len(objects)+1)
 	for i, object := range objects {
 		offsets[i+1] = output.Len()
-		output.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", i+1, object))
+		fmt.Fprintf(&output, "%d 0 obj\n%s\nendobj\n", i+1, object)
 	}
 
 	xrefOffset := output.Len()
-	output.WriteString(fmt.Sprintf("xref\n0 %d\n", len(objects)+1))
+	fmt.Fprintf(&output, "xref\n0 %d\n", len(objects)+1)
 	output.WriteString("0000000000 65535 f \n")
 	for i := 1; i <= len(objects); i++ {
-		output.WriteString(fmt.Sprintf("%010d 00000 n \n", offsets[i]))
+		fmt.Fprintf(&output, "%010d 00000 n \n", offsets[i])
 	}
 
-	output.WriteString(fmt.Sprintf("trailer << /Size %d /Root 1 0 R >>\n", len(objects)+1))
-	output.WriteString(fmt.Sprintf("startxref\n%d\n%%%%EOF", xrefOffset))
+	fmt.Fprintf(&output, "trailer << /Size %d /Root 1 0 R >>\n", len(objects)+1)
+	fmt.Fprintf(&output, "startxref\n%d\n%%%%EOF", xrefOffset)
 	return output.Bytes()
 }
 
