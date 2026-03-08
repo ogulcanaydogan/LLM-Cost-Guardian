@@ -199,9 +199,9 @@ func renderPDFPage(lines []pdfLine, pageNumber, pageCount int) string {
 
 	for _, line := range lines {
 		builder.WriteString("BT\n")
-		builder.WriteString(fmt.Sprintf("/%s %.0f Tf\n", line.Font, line.Size))
-		builder.WriteString(fmt.Sprintf("1 0 0 1 50 %.2f Tm\n", y))
-		builder.WriteString(fmt.Sprintf("(%s) Tj\n", escapePDFText(line.Text)))
+		fmt.Fprintf(&builder, "/%s %.0f Tf\n", line.Font, line.Size)
+		fmt.Fprintf(&builder, "1 0 0 1 50 %.2f Tm\n", y)
+		fmt.Fprintf(&builder, "(%s) Tj\n", escapePDFText(line.Text))
 		builder.WriteString("ET\n")
 		y -= line.Size + 4
 	}
