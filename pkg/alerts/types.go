@@ -13,7 +13,12 @@ const (
 
 // Alert represents a budget threshold notification.
 type Alert struct {
+	Kind         string     `json:"kind,omitempty"`
 	Level        AlertLevel `json:"level"`
+	Tenant       string     `json:"tenant,omitempty"`
+	Project      string     `json:"project,omitempty"`
+	Provider     string     `json:"provider,omitempty"`
+	Model        string     `json:"model,omitempty"`
 	BudgetName   string     `json:"budget_name"`
 	LimitUSD     float64    `json:"limit_usd"`
 	CurrentSpend float64    `json:"current_spend"`

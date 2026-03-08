@@ -20,7 +20,12 @@ alerts:
     secret: ""
 
 pricing:
-  dir: pricing/
+  dir: pricing/  # openai.yaml, anthropic.yaml, azure-openai.yaml, bedrock.yaml, vertex-ai.yaml
+
+auth:
+  multi_tenant_enabled: false
+  default_tenant: default
+  bootstrap_admin_key: ""
 
 logging:
   level: info

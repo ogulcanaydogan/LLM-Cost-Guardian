@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -82,6 +83,51 @@ func openAIResponseHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		panic(err)
+	}
+}
+
+func openAIStreamingResponseHandler(includeUsage bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher, _ := w.(http.Flusher)
+
+		fmt.Fprint(w, "data: {\"id\":\"chatcmpl-stream\",\"model\":\"gpt-4o\",\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n\n")
+		if flusher != nil {
+			flusher.Flush()
+		}
+
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\" streamed world\"}}]}\n\n")
+		if flusher != nil {
+			flusher.Flush()
+		}
+
+		if includeUsage {
+			fmt.Fprint(w, "data: {\"model\":\"gpt-4o\",\"usage\":{\"prompt_tokens\":18,\"completion_tokens\":6,\"total_tokens\":24},\"choices\":[]}\n\n")
+		}
+		fmt.Fprint(w, "data: [DONE]\n\n")
+	}
+}
+
+func anthropicStreamingResponseHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher, _ := w.(http.Flusher)
+
+		fmt.Fprint(w, "event: message_start\n")
+		fmt.Fprint(w, "data: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-3.5-sonnet\",\"usage\":{\"input_tokens\":21}}}\n\n")
+		if flusher != nil {
+			flusher.Flush()
+		}
+
+		fmt.Fprint(w, "event: content_block_delta\n")
+		fmt.Fprint(w, "data: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"Hello from Claude\"}}\n\n")
+		if flusher != nil {
+			flusher.Flush()
+		}
+
+		fmt.Fprint(w, "event: message_delta\n")
+		fmt.Fprint(w, "data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":9}}\n\n")
+		fmt.Fprint(w, "data: [DONE]\n\n")
 	}
 }
 
@@ -215,6 +261,79 @@ func TestProxyHandler_ProjectScopedBudgetEnforcement(t *testing.T) {
 	blockedResp := httptest.NewRecorder()
 	env.handler.ServeHTTP(blockedResp, blockedReq)
 	assert.Equal(t, http.StatusPaymentRequired, blockedResp.Code)
+}
+
+func TestProxyHandler_OpenAIStreamingRecordsUsage(t *testing.T) {
+	env := setupProxyTest(t, openAIStreamingResponseHandler(true), 1024, false)
+
+	body := []byte(`{"model":"gpt-4o","stream":true,"messages":[{"role":"user","content":"Hello"}]}`)
+	req := httptest.NewRequest("POST", "/v1/chat/completions", bytes.NewReader(body))
+	req.Header.Set("X-LCG-Target", env.upstream.URL+"/v1/chat/completions")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+
+	w := httptest.NewRecorder()
+	env.handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "true", w.Header().Get("X-LCG-Streaming"))
+	assert.Empty(t, w.Header().Get("X-LLM-Cost"))
+	assert.Contains(t, w.Body.String(), "data: [DONE]")
+
+	records, err := env.store.QueryUsage(context.Background(), model.ReportFilter{})
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	assert.Equal(t, int64(18), records[0].InputTokens)
+	assert.Equal(t, int64(6), records[0].OutputTokens)
+
+	var metadata model.UsageMetadata
+	require.NoError(t, json.Unmarshal([]byte(records[0].Metadata), &metadata))
+	assert.True(t, metadata.Streaming)
+}
+
+func TestProxyHandler_AnthropicStreamingMergesUsageEvents(t *testing.T) {
+	env := setupProxyTest(t, anthropicStreamingResponseHandler(), 1024, false)
+
+	body := []byte(`{"model":"claude-3.5-sonnet","stream":true,"messages":[{"role":"user","content":"Hello"}]}`)
+	req := httptest.NewRequest("POST", "/v1/messages", bytes.NewReader(body))
+	req.Header.Set("X-LCG-Target", env.upstream.URL+"/v1/messages")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+
+	w := httptest.NewRecorder()
+	env.handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	records, err := env.store.QueryUsage(context.Background(), model.ReportFilter{})
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	assert.Equal(t, "anthropic", records[0].Provider)
+	assert.Equal(t, "claude-3.5-sonnet", records[0].Model)
+	assert.Equal(t, int64(21), records[0].InputTokens)
+	assert.Equal(t, int64(9), records[0].OutputTokens)
+}
+
+func TestProxyHandler_StreamFallbackEstimatesUsage(t *testing.T) {
+	env := setupProxyTest(t, openAIStreamingResponseHandler(false), 1024, false)
+
+	body := []byte(`{"model":"gpt-4o","stream":true,"messages":[{"role":"user","content":"Summarize release notes"}]}`)
+	req := httptest.NewRequest("POST", "/v1/chat/completions", bytes.NewReader(body))
+	req.Header.Set("X-LCG-Target", env.upstream.URL+"/v1/chat/completions")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+
+	w := httptest.NewRecorder()
+	env.handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	records, err := env.store.QueryUsage(context.Background(), model.ReportFilter{})
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	assert.Equal(t, "gpt-4o", records[0].Model)
+	assert.Greater(t, records[0].InputTokens, int64(0))
+	assert.Greater(t, records[0].OutputTokens, int64(0))
 }
 
 func TestProxyHandler_InvalidTargetURL(t *testing.T) {

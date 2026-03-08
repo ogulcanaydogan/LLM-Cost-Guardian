@@ -27,8 +27,8 @@ func NewBudgetManager(store storage.Storage, notifiers []alerts.Notifier, logger
 }
 
 // RecordSpend adds the given amount to applicable global and project budgets.
-func (m *BudgetManager) RecordSpend(ctx context.Context, project string, amount float64) error {
-	budgets, err := m.applicableBudgets(ctx, project)
+func (m *BudgetManager) RecordSpend(ctx context.Context, tenant, project string, amount float64) error {
+	budgets, err := m.applicableBudgets(ctx, tenant, project)
 	if err != nil {
 		return fmt.Errorf("list budgets: %w", err)
 	}
@@ -53,8 +53,8 @@ func (m *BudgetManager) RecordSpend(ctx context.Context, project string, amount 
 }
 
 // CheckApplicable checks applicable global and project budgets against their thresholds.
-func (m *BudgetManager) CheckApplicable(ctx context.Context, project string) error {
-	budgets, err := m.applicableBudgets(ctx, project)
+func (m *BudgetManager) CheckApplicable(ctx context.Context, tenant, project string) error {
+	budgets, err := m.applicableBudgets(ctx, tenant, project)
 	if err != nil {
 		return fmt.Errorf("list budgets: %w", err)
 	}
@@ -84,16 +84,20 @@ func (m *BudgetManager) CheckAll(ctx context.Context) error {
 	return nil
 }
 
-func (m *BudgetManager) applicableBudgets(ctx context.Context, project string) ([]Budget, error) {
+func (m *BudgetManager) applicableBudgets(ctx context.Context, tenant, project string) ([]Budget, error) {
 	budgets, err := m.storage.ListBudgets(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	tenant = strings.TrimSpace(tenant)
 	project = strings.TrimSpace(project)
 	if project == "" {
 		var globals []Budget
 		for _, budget := range budgets {
+			if strings.TrimSpace(budget.Tenant) != tenant {
+				continue
+			}
 			if strings.TrimSpace(budget.Project) == "" {
 				globals = append(globals, budget)
 			}
@@ -103,6 +107,9 @@ func (m *BudgetManager) applicableBudgets(ctx context.Context, project string) (
 
 	var applicable []Budget
 	for _, budget := range budgets {
+		if strings.TrimSpace(budget.Tenant) != tenant {
+			continue
+		}
 		scope := strings.TrimSpace(budget.Project)
 		if scope == "" || scope == project {
 			applicable = append(applicable, budget)
@@ -173,10 +180,10 @@ func (m *BudgetManager) ResetBudgetSpend(ctx context.Context, name string) error
 
 func budgetMessage(budget *Budget, pct float64) string {
 	if strings.TrimSpace(budget.Project) == "" {
-		return fmt.Sprintf("Budget %q at %.1f%% ($%.2f / $%.2f)",
-			budget.Name, pct, budget.CurrentSpend, budget.LimitUSD)
+		return fmt.Sprintf("Budget %q for tenant %q at %.1f%% ($%.2f / $%.2f)",
+			budget.Name, budget.Tenant, pct, budget.CurrentSpend, budget.LimitUSD)
 	}
 
-	return fmt.Sprintf("Budget %q for project %q at %.1f%% ($%.2f / $%.2f)",
-		budget.Name, budget.Project, pct, budget.CurrentSpend, budget.LimitUSD)
+	return fmt.Sprintf("Budget %q for tenant %q project %q at %.1f%% ($%.2f / $%.2f)",
+		budget.Name, budget.Tenant, budget.Project, pct, budget.CurrentSpend, budget.LimitUSD)
 }

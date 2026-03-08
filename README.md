@@ -23,7 +23,7 @@
 
 ## About
 
-Organizations running LLM workloads across multiple providers (OpenAI, Anthropic, Azure, Bedrock) face a critical blind spot: **cost visibility**. Token-based pricing, model proliferation, and decentralized usage patterns make it nearly impossible to answer basic questions — _How much did we spend last week? Which model is most cost-efficient? Are we within budget?_
+Organizations running LLM workloads across multiple providers (OpenAI, Anthropic, Azure OpenAI, Bedrock, Vertex AI) face a critical blind spot: **cost visibility**. Token-based pricing, model proliferation, and decentralized usage patterns make it nearly impossible to answer basic questions — _How much did we spend last week? Which model is most cost-efficient? Are we within budget?_
 
 LLM Cost Guardian solves this by providing a **transparent cost tracking layer** that sits between your applications and LLM providers. It intercepts API calls, counts tokens, calculates costs using up-to-date pricing data, enforces budget limits, and sends alerts — all with sub-10ms overhead.
 
@@ -41,8 +41,8 @@ LLM Cost Guardian solves this by providing a **transparent cost tracking layer**
 
 | Metric | Value |
 |--------|-------|
-| Supported Providers | OpenAI, Anthropic (Azure, Bedrock planned) |
-| Tracked Models | 13+ with extensible YAML pricing |
+| Supported Providers | OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, Google Vertex AI |
+| Tracked Models | 20+ with extensible YAML pricing |
 | Proxy Latency Overhead | < 10ms |
 | Storage | SQLite (WAL mode, CGO-free) |
 | Build Targets | 6 platforms (linux/darwin/windows × amd64/arm64) |
@@ -60,17 +60,17 @@ LLM Cost Guardian solves this by providing a **transparent cost tracking layer**
 - Automatic cost calculation per API call
 - Per-provider, per-model pricing (YAML-based)
 - Token counting via tiktoken (OpenAI) and estimation
-- Project-level cost attribution
+- Tenant and project-level cost attribution
 
 </td>
 <td width="50%">
 
 **Budget Management**
 - Daily, weekly, and monthly spending limits
-- Global and project-scoped budget support
+- Tenant-global and tenant-project budget support
 - Configurable alert thresholds (e.g., 80%, 95%)
 - Optional request blocking when budget exceeded
-- Multi-budget support for different teams/projects
+- API-key based tenant isolation
 
 </td>
 </tr>
@@ -79,10 +79,11 @@ LLM Cost Guardian solves this by providing a **transparent cost tracking layer**
 
 **Transparent Proxy**
 - Drop-in reverse proxy for LLM APIs
-- Cost headers injected into every response
+- Cost headers injected into non-streaming responses
 - Automatic provider detection from request URL
 - Explicit provider overrides via `X-LCG-Provider`
 - Request body limits enforced before upstream calls
+- Live SSE passthrough with end-of-stream usage capture
 
 </td>
 <td>
@@ -90,8 +91,9 @@ LLM Cost Guardian solves this by providing a **transparent cost tracking layer**
 **Alerting & Monitoring**
 - Slack webhook notifications
 - Generic HTTP webhooks with HMAC signing
-- Grafana dashboard template included
-- REST API for custom integrations
+- Prometheus-compatible `/metrics` endpoint
+- JSON API for reports and analytics
+- Anomaly detection, forecasting, recommendations, and prompt optimization insights
 
 </td>
 </tr>
@@ -106,7 +108,7 @@ LLM Cost Guardian solves this by providing a **transparent cost tracking layer**
 ```mermaid
 flowchart TB
     subgraph Clients["Client Applications"]
-        SDK["OpenAI / Anthropic SDK"]
+        SDK["OpenAI / Anthropic / Azure / Bedrock / Vertex SDKs"]
         App["Your Application"]
     end
 
@@ -131,6 +133,9 @@ flowchart TB
     subgraph Providers["LLM Providers"]
         OpenAI["OpenAI API"]
         Anthropic["Anthropic API"]
+        Azure["Azure OpenAI"]
+        Bedrock["AWS Bedrock"]
+        Vertex["Google Vertex AI"]
     end
 
     subgraph Monitoring["Monitoring & Alerts"]
@@ -143,8 +148,14 @@ flowchart TB
     App --> Proxy
     Proxy --> OpenAI
     Proxy --> Anthropic
+    Proxy --> Azure
+    Proxy --> Bedrock
+    Proxy --> Vertex
     OpenAI --> Proxy
     Anthropic --> Proxy
+    Azure --> Proxy
+    Bedrock --> Proxy
+    Vertex --> Proxy
 
     API --> Grafana
     Alert --> Slack
@@ -246,6 +257,7 @@ llm-cost-guardian/
 │   ├── cli/                   # Cobra CLI commands
 │   ├── config/                # Viper configuration
 │   ├── proxy/                 # Reverse proxy + token extraction
+│   ├── reporting/             # CSV/PDF export helpers
 │   └── server/                # REST API server
 ├── pkg/
 │   ├── alerts/                # Slack & webhook notifiers
@@ -255,6 +267,7 @@ llm-cost-guardian/
 │   ├── tokenizer/             # Token counting (tiktoken + estimation)
 │   └── tracker/               # Cost calculator, usage tracker, budget mgr
 ├── pricing/                   # YAML pricing data
+├── sdk/typescript/            # TypeScript SDK package
 ├── grafana/dashboards/        # Grafana dashboard template
 ├── deploy/docker/             # Dockerfile
 ├── docs/                      # Extended documentation
@@ -345,6 +358,10 @@ lcg report --period daily
 
 # Monthly report filtered by provider
 lcg report --period monthly --provider openai --detailed
+
+# Chargeback export by project
+lcg report --period monthly --format csv --output output/csv/monthly-chargeback.csv
+lcg report --period monthly --format pdf --output output/pdf/monthly-chargeback.pdf
 ```
 
 ### List Providers & Pricing
@@ -357,6 +374,9 @@ lcg providers list
 # openai     o3-mini             $1.10         $4.40          -
 # anthropic  claude-3.5-sonnet   $3.00         $15.00         $0.30
 # anthropic  claude-3-haiku      $0.25         $1.25          $0.03
+# azure-openai gpt-4o            $2.50         $10.00         -
+# bedrock   anthropic.claude...  $3.00         $15.00         $0.30
+# vertex-ai gemini-1.5-pro       $1.25         $5.00          -
 ```
 
 ---
@@ -369,6 +389,12 @@ lcg providers list
 | `lcg report` | Generate usage and cost reports |
 | `lcg budget set` | Create or update a spending budget |
 | `lcg budget status` | Show current budget utilization |
+| `lcg tenants` | Create, list, and disable tenants |
+| `lcg api-keys` | Create, list, and revoke tenant API keys |
+| `lcg anomalies` | Show spend anomalies |
+| `lcg forecast` | Forecast 7-day and 30-day spend |
+| `lcg recommend` | Suggest lower-cost model alternatives |
+| `lcg prompts optimize` | Show prompt efficiency suggestions |
 | `lcg providers list` | List all providers and model pricing |
 | `lcg proxy start` | Start the transparent cost tracking proxy |
 | `lcg version` | Print the version |
@@ -395,6 +421,7 @@ client = openai.OpenAI(
     base_url="http://localhost:8080/v1",
     api_key="your-api-key",
     default_headers={
+        "X-LCG-API-Key": "lcg_tenant_key",
         "X-LCG-Target": "https://api.openai.com/v1/chat/completions",
         "X-LCG-Project": "my-app",
     }
@@ -418,14 +445,20 @@ response = client.chat.completions.create(
 | `X-LLM-Provider` | Detected provider | `openai` |
 | `X-LLM-Model` | Model used | `gpt-4o` |
 | `X-LCG-Latency` | Proxy overhead | `2.1ms` |
+| `X-LCG-Streaming` | Present on streaming passthrough responses | `true` |
 
 ### Request Headers
 
 | Header | Required | Description |
 |--------|----------|------------|
 | `X-LCG-Target` | Yes | Upstream API URL |
+| `X-LCG-API-Key` | When multi-tenant auth is enabled | Tenant API key for LCG |
 | `X-LCG-Provider` | No | Explicitly override provider detection |
 | `X-LCG-Project` | No | Project name for attribution |
+
+`Authorization: Bearer <key>` is also accepted for LCG auth, but `X-LCG-API-Key` is safer for proxy traffic because it avoids clobbering upstream provider credentials.
+
+Streaming requests are passed through live. When the upstream stream exposes terminal usage, LCG records exact tokens; otherwise it falls back to prompt/output estimation and still writes the final usage row.
 
 ---
 
@@ -436,8 +469,68 @@ The built-in server exposes a small JSON API alongside proxy mode:
 | Endpoint | Description |
 |----------|-------------|
 | `GET /healthz` | Liveness check returning `{"status":"ok"}` |
-| `GET /api/v1/usage` | Raw usage records with optional `provider`, `model`, and `project` filters |
-| `GET /api/v1/summary` | Aggregated usage summary for `daily`, `weekly`, or `monthly` periods |
+| `GET /metrics` | Prometheus-compatible counters for requests, tokens, and spend with `tenant`, `provider`, `model`, and `project` labels |
+| `GET /api/v1/usage` | Raw usage records with optional `tenant`, `provider`, `model`, and `project` filters |
+| `GET /api/v1/summary` | Aggregated usage summary for `daily`, `weekly`, or `monthly` periods including tenant, provider, model, and project breakdowns |
+| `GET /api/v1/anomalies` | Spend anomaly detection results |
+| `GET /api/v1/forecast` | 7-day and 30-day spend forecasts |
+| `GET /api/v1/recommendations` | Lower-cost model recommendations for observed workloads |
+| `GET /api/v1/prompt-optimizations` | Prompt efficiency suggestions derived from request metadata |
+
+## TypeScript SDK
+
+The repository now includes a TypeScript SDK package under [`sdk/typescript`](sdk/typescript).
+
+```ts
+import { LCGClient } from "@ogulcanaydogan/llm-cost-guardian";
+
+const client = new LCGClient({
+  baseUrl: "http://127.0.0.1:8080",
+  apiKey: "lcg_tenant_key",
+  defaultProject: "payments",
+  defaultTenant: "default"
+});
+
+const summary = await client.summary({ period: "daily" });
+const anomalies = await client.anomalies({ tenant: "default" });
+
+await client.proxyFetch({
+  path: "/v1/chat/completions",
+  target: "https://api.openai.com/v1/chat/completions",
+  provider: "openai",
+  requestInit: {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY ?? ""}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: "Hello" }]
+    })
+  }
+});
+```
+
+The TypeScript SDK uses `X-LCG-API-Key` for LCG auth, preserving upstream `Authorization` headers for provider credentials.
+
+## Python SDK
+
+The repository also includes a Python SDK package under [`sdk/python`](sdk/python).
+
+```python
+from llm_cost_guardian import LCGClient
+
+client = LCGClient(
+    base_url="http://127.0.0.1:8080",
+    api_key="lcg_tenant_key",
+    default_project="payments",
+    default_tenant="default",
+)
+
+summary = client.summary(period="daily")
+forecast = client.forecast(tenant="default")
+```
 
 ---
 
@@ -464,6 +557,11 @@ alerts:
 pricing:
   dir: pricing/
 
+auth:
+  multi_tenant_enabled: false
+  default_tenant: default
+  bootstrap_admin_key: ""
+
 defaults:
   project: default
 ```
@@ -479,6 +577,8 @@ export LCG_LOGGING_LEVEL=debug
 Full configuration reference: [docs/configuration.md](docs/configuration.md)
 
 `deny_on_exceed` evaluates global budgets plus any budget scoped to the request project. `max_body_size` returns `413 Payload Too Large` before the request is sent upstream.
+
+Bundled pricing snapshots live in `pricing/*.yaml`. Review and adjust them to match your contracted provider pricing if needed.
 
 ---
 
@@ -522,6 +622,10 @@ Lint (golangci-lint)
     ▼
 Test (race detector + 80% coverage gate)
     │
+    ├──► Python SDK test + build
+    │
+    └──► TypeScript SDK build
+    │
     ▼
 Benchmark
     │
@@ -538,13 +642,17 @@ Release (on v* tags → GitHub Releases with checksums)
 
 - `go build ./...`
 - `go test -race -coverprofile=coverage.out ./...`
+- `python3 -m unittest discover -s sdk/python/tests -t sdk/python`
 - `lcg proxy start --listen 127.0.0.1:8080`
-- Send one sample OpenAI or Anthropic request through the proxy and confirm `X-LLM-Cost` headers
+- Create a tenant and API key with `lcg tenants create` and `lcg api-keys create`
+- Send one sample OpenAI or Anthropic JSON request through the proxy and confirm `X-LLM-Cost` headers
+- Send one sample streaming request and confirm passthrough plus final DB write
 - Verify a usage row is written to `guardian.db`
 - Run `lcg report --period daily`
+- Verify `/metrics`, `/api/v1/anomalies`, `/api/v1/forecast`, `/api/v1/recommendations`, and `/api/v1/prompt-optimizations`
 - Configure a low budget plus webhook/Slack notifier and confirm alert dispatch
 
-Create the `v1.0.0` tag only after CI and this smoke checklist pass cleanly.
+Create the `v1.1.0` tag only after CI and this smoke checklist pass cleanly.
 
 ---
 
@@ -562,21 +670,21 @@ Create the `v1.0.0` tag only after CI and this smoke checklist pass cleanly.
 - [x] Grafana dashboard template
 
 ### Phase 2 — Enterprise Features
-- [ ] Multi-tenant support with team isolation
-- [ ] Azure OpenAI provider
-- [ ] AWS Bedrock provider
-- [ ] Google Vertex AI provider
-- [ ] Python SDK
-- [ ] TypeScript SDK
-- [ ] Chargeback reports (CSV/PDF export)
-- [ ] Prometheus metrics endpoint
+- [x] Multi-tenant support with API-key isolation
+- [x] Azure OpenAI provider
+- [x] AWS Bedrock provider
+- [x] Google Vertex AI provider
+- [x] Python SDK
+- [x] TypeScript SDK
+- [x] Chargeback reports (CSV/PDF export)
+- [x] Prometheus metrics endpoint
 
 ### Phase 3 — Intelligence
-- [ ] Cost anomaly detection (statistical + ML)
-- [ ] Model recommendation engine
-- [ ] Prompt optimization suggestions
-- [ ] Usage forecasting
-- [ ] Streaming response support (SSE)
+- [x] Cost anomaly detection (production-lite statistical heuristics)
+- [x] Model recommendation engine
+- [x] Prompt optimization suggestions
+- [x] Usage forecasting
+- [x] Streaming response support (SSE)
 
 ---
 

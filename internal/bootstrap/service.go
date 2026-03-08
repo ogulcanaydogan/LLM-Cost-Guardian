@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/config"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/httpauth"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/proxy"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/server"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/alerts"
@@ -56,33 +58,25 @@ func NewRegistry(cfg *config.Config) (*providers.Registry, error) {
 	registry := providers.NewRegistry()
 	pricingDir := resolvePricingDir(cfg.Pricing.Dir)
 
-	loaders := []struct {
-		filename string
-		load     func(string) (providers.Provider, error)
-	}{
-		{
-			filename: "openai.yaml",
-			load: func(path string) (providers.Provider, error) {
-				return providers.NewOpenAIFromFile(path)
-			},
-		},
-		{
-			filename: "anthropic.yaml",
-			load: func(path string) (providers.Provider, error) {
-				return providers.NewAnthropicFromFile(path)
-			},
-		},
+	entries, err := os.ReadDir(pricingDir)
+	if err != nil {
+		return nil, fmt.Errorf("read pricing dir: %w", err)
 	}
 
-	for _, loader := range loaders {
-		path := filepath.Join(pricingDir, loader.filename)
-		if _, err := os.Stat(path); err != nil {
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
 			continue
 		}
+		files = append(files, entry.Name())
+	}
+	sort.Strings(files)
 
-		provider, err := loader.load(path)
+	for _, filename := range files {
+		path := filepath.Join(pricingDir, filename)
+		provider, err := providers.NewProviderFromFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("load %s pricing: %w", loader.filename, err)
+			return nil, fmt.Errorf("load %s pricing: %w", filename, err)
 		}
 		if err := registry.Register(provider); err != nil {
 			return nil, err
@@ -131,6 +125,10 @@ func NewTracker(cfg *config.Config) (*tracker.UsageTracker, storage.Storage, *sl
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	if _, err := store.EnsureTenant(context.Background(), cfg.Auth.DefaultTenant, "Default"); err != nil {
+		_ = store.Close()
+		return nil, nil, nil, err
+	}
 
 	notifiers := NewNotifiers(cfg)
 	budgetMgr := tracker.NewBudgetManager(store, notifiers, logger)
@@ -155,11 +153,13 @@ func NewService(cfg *config.Config) (*Service, error) {
 		logger,
 	)
 	apiServer := server.NewServer(usageTracker, logger)
+	authMiddleware := httpauth.New(store, cfg.Auth.MultiTenantEnabled, cfg.Auth.DefaultTenant, cfg.Auth.BootstrapAdminKey, logger)
 
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", apiServer.Handler())
-	mux.Handle("/api/", apiServer.Handler())
-	mux.Handle("/", proxyHandler)
+	mux.Handle("/metrics", authMiddleware.Wrap(apiServer.Handler()))
+	mux.Handle("/api/", authMiddleware.Wrap(apiServer.Handler()))
+	mux.Handle("/", authMiddleware.Wrap(proxyHandler))
 
 	readTimeout, _ := time.ParseDuration(cfg.Proxy.ReadTimeout)
 	if readTimeout == 0 {

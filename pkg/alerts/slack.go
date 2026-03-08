@@ -40,20 +40,37 @@ func (s *SlackNotifier) Send(ctx context.Context, alert Alert) error {
 		color = "#cc0000" // dark red
 	}
 
+	title := fmt.Sprintf("LLM Cost Guardian: %s %s", alertKind(alert), string(alert.Level))
+	fields := []slackField{
+		{Title: "Tenant", Value: valueOrDash(alert.Tenant), Short: true},
+	}
+
+	if alert.Kind == "" || alert.Kind == "budget" {
+		title = fmt.Sprintf("LLM Cost Guardian: Budget %s", string(alert.Level))
+		fields = append(fields,
+			slackField{Title: "Budget", Value: alert.BudgetName, Short: true},
+			slackField{Title: "Period", Value: alert.Period, Short: true},
+			slackField{Title: "Current Spend", Value: fmt.Sprintf("$%.2f", alert.CurrentSpend), Short: true},
+			slackField{Title: "Limit", Value: fmt.Sprintf("$%.2f", alert.LimitUSD), Short: true},
+			slackField{Title: "Threshold", Value: fmt.Sprintf("%.0f%%", alert.ThresholdPct), Short: true},
+			slackField{Title: "Usage", Value: fmt.Sprintf("%.1f%%", safeUsagePct(alert)), Short: true},
+		)
+	} else {
+		fields = append(fields,
+			slackField{Title: "Project", Value: valueOrDash(alert.Project), Short: true},
+			slackField{Title: "Provider", Value: valueOrDash(alert.Provider), Short: true},
+			slackField{Title: "Model", Value: valueOrDash(alert.Model), Short: true},
+			slackField{Title: "Message", Value: valueOrDash(alert.Message), Short: false},
+		)
+	}
+
 	payload := slackPayload{
 		Channel: s.channel,
 		Attachments: []slackAttachment{
 			{
 				Color: color,
-				Title: fmt.Sprintf("LLM Cost Guardian: Budget %s", string(alert.Level)),
-				Fields: []slackField{
-					{Title: "Budget", Value: alert.BudgetName, Short: true},
-					{Title: "Period", Value: alert.Period, Short: true},
-					{Title: "Current Spend", Value: fmt.Sprintf("$%.2f", alert.CurrentSpend), Short: true},
-					{Title: "Limit", Value: fmt.Sprintf("$%.2f", alert.LimitUSD), Short: true},
-					{Title: "Threshold", Value: fmt.Sprintf("%.0f%%", alert.ThresholdPct), Short: true},
-					{Title: "Usage", Value: fmt.Sprintf("%.1f%%", (alert.CurrentSpend/alert.LimitUSD)*100), Short: true},
-				},
+				Title:  title,
+				Fields: fields,
 				Footer: "LLM Cost Guardian",
 				Ts:     time.Now().Unix(),
 			},
@@ -81,6 +98,27 @@ func (s *SlackNotifier) Send(ctx context.Context, alert Alert) error {
 		return fmt.Errorf("slack returned status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+func alertKind(alert Alert) string {
+	if alert.Kind == "" {
+		return "budget"
+	}
+	return alert.Kind
+}
+
+func safeUsagePct(alert Alert) float64 {
+	if alert.LimitUSD == 0 {
+		return 0
+	}
+	return (alert.CurrentSpend / alert.LimitUSD) * 100
+}
+
+func valueOrDash(value string) string {
+	if value == "" {
+		return "-"
+	}
+	return value
 }
 
 type slackPayload struct {

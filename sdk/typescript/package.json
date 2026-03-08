@@ -1,0 +1,32 @@
+{
+  "name": "@ogulcanaydogan/llm-cost-guardian",
+  "version": "1.1.0",
+  "description": "TypeScript SDK for LLM Cost Guardian",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  },
+  "keywords": [
+    "llm",
+    "openai",
+    "anthropic",
+    "cost-tracking",
+    "observability"
+  ],
+  "license": "Apache-2.0"
+}

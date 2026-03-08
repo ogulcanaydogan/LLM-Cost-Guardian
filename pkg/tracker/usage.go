@@ -32,7 +32,7 @@ func NewUsageTracker(registry *providers.Registry, store storage.Storage, budget
 }
 
 // Track records a single LLM API usage event.
-func (t *UsageTracker) Track(ctx context.Context, providerName, model string, inputTokens, outputTokens int64, project string) (*UsageRecord, error) {
+func (t *UsageTracker) Track(ctx context.Context, tenant, providerName, model string, inputTokens, outputTokens int64, project string) (*UsageRecord, error) {
 	cost, err := t.calculator.Calculate(providerName, model, inputTokens, outputTokens)
 	if err != nil {
 		return nil, fmt.Errorf("calculate cost: %w", err)
@@ -40,6 +40,7 @@ func (t *UsageTracker) Track(ctx context.Context, providerName, model string, in
 
 	record := &UsageRecord{
 		ID:           uuid.New().String(),
+		Tenant:       tenant,
 		Provider:     providerName,
 		Model:        model,
 		InputTokens:  inputTokens,
@@ -56,6 +57,7 @@ func (t *UsageTracker) Track(ctx context.Context, providerName, model string, in
 	t.logger.Info("usage recorded",
 		"provider", providerName,
 		"model", model,
+		"tenant", tenant,
 		"input_tokens", inputTokens,
 		"output_tokens", outputTokens,
 		"cost_usd", cost,
@@ -64,10 +66,11 @@ func (t *UsageTracker) Track(ctx context.Context, providerName, model string, in
 
 	// Check budgets
 	if t.budget != nil {
-		if checkErr := t.budget.RecordSpend(ctx, record.Project, record.CostUSD); checkErr != nil {
+		if checkErr := t.budget.RecordSpend(ctx, record.Tenant, record.Project, record.CostUSD); checkErr != nil {
 			t.logger.Error("budget check failed", "error", checkErr)
 		}
 	}
+	t.maybeSendAnomalyAlert(ctx, record)
 
 	return record, nil
 }
@@ -79,6 +82,9 @@ func (t *UsageTracker) TrackWithTokens(ctx context.Context, record *UsageRecord)
 	}
 	if record.Timestamp.IsZero() {
 		record.Timestamp = time.Now().UTC()
+	}
+	if record.Tenant == "" {
+		record.Tenant = defaultTenant()
 	}
 
 	// Calculate cost if not provided
@@ -96,10 +102,11 @@ func (t *UsageTracker) TrackWithTokens(ctx context.Context, record *UsageRecord)
 
 	// Check budgets
 	if t.budget != nil {
-		if checkErr := t.budget.RecordSpend(ctx, record.Project, record.CostUSD); checkErr != nil {
+		if checkErr := t.budget.RecordSpend(ctx, record.Tenant, record.Project, record.CostUSD); checkErr != nil {
 			t.logger.Error("budget check failed", "error", checkErr)
 		}
 	}
+	t.maybeSendAnomalyAlert(ctx, record)
 
 	return nil
 }
@@ -116,13 +123,17 @@ func (t *UsageTracker) Query(ctx context.Context, filter ReportFilter) ([]UsageR
 
 // CheckBudget verifies if spending is within budget limits. Returns an error if any budget is exceeded.
 func (t *UsageTracker) CheckBudget(ctx context.Context) error {
-	return t.CheckBudgetForProject(ctx, "")
+	return t.CheckBudgetForProject(ctx, defaultTenant(), "")
 }
 
 // CheckBudgetForProject verifies if applicable budgets are within limits for the given project.
-func (t *UsageTracker) CheckBudgetForProject(ctx context.Context, project string) error {
+func (t *UsageTracker) CheckBudgetForProject(ctx context.Context, tenant, project string) error {
 	if t.budget == nil {
 		return nil
 	}
-	return t.budget.CheckApplicable(ctx, project)
+	return t.budget.CheckApplicable(ctx, tenant, project)
+}
+
+func defaultTenant() string {
+	return "default"
 }

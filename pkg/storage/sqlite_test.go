@@ -249,3 +249,106 @@ func TestSQLite_MigrationIdempotency(t *testing.T) {
 	require.NoError(t, err)
 	db2.Close()
 }
+
+func TestSQLite_TenantsAndAPIKeys(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	defaultTenant, err := db.GetTenant(ctx, "default")
+	require.NoError(t, err)
+	assert.Equal(t, "default", defaultTenant.Slug)
+
+	tenant := &model.Tenant{Slug: "acme-labs"}
+	require.NoError(t, db.CreateTenant(ctx, tenant))
+	assert.Equal(t, "Acme Labs", tenant.Name)
+
+	ensured, err := db.EnsureTenant(ctx, "acme-labs", "")
+	require.NoError(t, err)
+	assert.Equal(t, tenant.ID, ensured.ID)
+
+	tenants, err := db.ListTenants(ctx)
+	require.NoError(t, err)
+	require.Len(t, tenants, 2)
+
+	key := &model.APIKey{
+		Tenant:    "acme-labs",
+		Name:      "primary",
+		KeyPrefix: "lcg_prefix",
+		KeyHash:   "hash123",
+		Status:    model.APIKeyStatusActive,
+	}
+	require.NoError(t, db.CreateAPIKey(ctx, key))
+
+	keys, err := db.ListAPIKeys(ctx, "acme-labs")
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+	assert.Equal(t, "primary", keys[0].Name)
+
+	resolvedKey, resolvedTenant, err := db.ResolveAPIKey(ctx, "hash123")
+	require.NoError(t, err)
+	assert.Equal(t, key.ID, resolvedKey.ID)
+	assert.Equal(t, "acme-labs", resolvedTenant.Slug)
+	require.NotNil(t, resolvedKey.LastUsedAt)
+
+	require.NoError(t, db.RevokeAPIKey(ctx, key.ID))
+	keys, err = db.ListAPIKeys(ctx, "acme-labs")
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+	assert.Equal(t, model.APIKeyStatusRevoked, keys[0].Status)
+
+	require.NoError(t, db.DisableTenant(ctx, "acme-labs"))
+	disabled, err := db.GetTenant(ctx, "acme-labs")
+	require.NoError(t, err)
+	assert.Equal(t, model.TenantStatusDisabled, disabled.Status)
+}
+
+func TestSQLite_QueryUsageRollups(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	base := time.Date(2026, time.January, 15, 9, 30, 0, 0, time.UTC)
+
+	require.NoError(t, db.RecordUsage(ctx, &model.UsageRecord{
+		Tenant:       "default",
+		Provider:     "openai",
+		Model:        "gpt-4o",
+		InputTokens:  100,
+		OutputTokens: 50,
+		CostUSD:      1.00,
+		Project:      "proj-a",
+		Timestamp:    base,
+	}))
+	require.NoError(t, db.RecordUsage(ctx, &model.UsageRecord{
+		Tenant:       "default",
+		Provider:     "openai",
+		Model:        "gpt-4o",
+		InputTokens:  200,
+		OutputTokens: 75,
+		CostUSD:      2.50,
+		Project:      "proj-a",
+		Timestamp:    base.Add(20 * time.Minute),
+	}))
+	require.NoError(t, db.RecordUsage(ctx, &model.UsageRecord{
+		Tenant:       "default",
+		Provider:     "anthropic",
+		Model:        "claude-3.5-sonnet",
+		InputTokens:  300,
+		OutputTokens: 125,
+		CostUSD:      3.75,
+		Project:      "proj-b",
+		Timestamp:    base.Add(24 * time.Hour),
+	}))
+
+	hourly, err := db.QueryUsageRollups(ctx, model.ReportFilter{Tenant: "default", Project: "proj-a"}, "hourly", base.Add(-time.Hour), base.Add(time.Hour))
+	require.NoError(t, err)
+	require.Len(t, hourly, 1)
+	assert.Equal(t, int64(2), hourly[0].RequestCount)
+	assert.Equal(t, int64(300), hourly[0].InputTokens)
+	assert.Equal(t, int64(125), hourly[0].OutputTokens)
+	assert.InDelta(t, 3.50, hourly[0].CostUSD, 0.001)
+
+	daily, err := db.QueryUsageRollups(ctx, model.ReportFilter{Tenant: "default"}, "daily", base.Add(-24*time.Hour), base.Add(48*time.Hour))
+	require.NoError(t, err)
+	require.Len(t, daily, 2)
+	assert.Equal(t, "proj-a", daily[0].Project)
+	assert.Equal(t, "proj-b", daily[1].Project)
+}

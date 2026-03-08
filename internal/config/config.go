@@ -13,6 +13,7 @@ import (
 type Config struct {
 	Storage  StorageConfig  `mapstructure:"storage"`
 	Proxy    ProxyConfig    `mapstructure:"proxy"`
+	Auth     AuthConfig     `mapstructure:"auth"`
 	Alerts   AlertsConfig   `mapstructure:"alerts"`
 	Pricing  PricingConfig  `mapstructure:"pricing"`
 	Logging  LoggingConfig  `mapstructure:"logging"`
@@ -32,6 +33,13 @@ type ProxyConfig struct {
 	MaxBodySize    int64  `mapstructure:"max_body_size"`
 	DenyOnExceed   bool   `mapstructure:"deny_on_exceed"`
 	AddCostHeaders bool   `mapstructure:"add_cost_headers"`
+}
+
+// AuthConfig defines tenant auth settings.
+type AuthConfig struct {
+	MultiTenantEnabled bool   `mapstructure:"multi_tenant_enabled"`
+	DefaultTenant      string `mapstructure:"default_tenant"`
+	BootstrapAdminKey  string `mapstructure:"bootstrap_admin_key"`
 }
 
 // AlertsConfig defines alerting integrations.
@@ -97,6 +105,8 @@ func Load(cfgFile string) (*Config, error) {
 	v.SetDefault("proxy.max_body_size", 10*1024*1024) // 10 MB
 	v.SetDefault("proxy.deny_on_exceed", false)
 	v.SetDefault("proxy.add_cost_headers", true)
+	v.SetDefault("auth.multi_tenant_enabled", false)
+	v.SetDefault("auth.default_tenant", "default")
 	v.SetDefault("pricing.dir", "pricing/")
 	v.SetDefault("logging.level", "info")
 	v.SetDefault("logging.format", "json")

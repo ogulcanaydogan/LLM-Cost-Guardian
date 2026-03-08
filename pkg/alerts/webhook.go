@@ -35,7 +35,7 @@ func (w *WebhookNotifier) Name() string { return "webhook" }
 
 func (w *WebhookNotifier) Send(ctx context.Context, alert Alert) error {
 	payload := webhookPayload{
-		Event:     "budget_alert",
+		Event:     alertEvent(alert),
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Alert:     alert,
 	}
@@ -79,4 +79,11 @@ func computeHMAC(message, key []byte) string {
 	mac := hmac.New(sha256.New, key)
 	mac.Write(message)
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func alertEvent(alert Alert) string {
+	if alert.Kind == "" || alert.Kind == "budget" {
+		return "budget_alert"
+	}
+	return alert.Kind + "_alert"
 }

@@ -1,0 +1,15 @@
+provider: vertex-ai
+updated: "2026-03-08"
+models:
+  - model: gemini-1.5-pro
+    input_per_million: 1.25
+    output_per_million: 5.00
+  - model: gemini-1.5-flash
+    input_per_million: 0.075
+    output_per_million: 0.30
+  - model: gemini-2.0-flash
+    input_per_million: 0.10
+    output_per_million: 0.40
+  - model: gemini-2.0-flash-lite
+    input_per_million: 0.075
+    output_per_million: 0.30

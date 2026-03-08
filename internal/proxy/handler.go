@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/internal/httpauth"
+	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/model"
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/tracker"
 )
 
@@ -83,18 +86,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Detect provider and extract request info
 	provider := strings.ToLower(strings.TrimSpace(r.Header.Get("X-LCG-Provider")))
 	if provider == "" {
-		provider = DetectProvider(target.Host, r.URL.Path)
+		provider = DetectProvider(target.Host, target.Path)
 	}
 
-	reqInfo, _ := ExtractRequestInfo(reqBody, provider)
+	reqInfo, _ := ExtractRequestInfo(reqBody, provider, target.Path)
+	streamingRequest := isStreamingRequest(r, target.Path, reqBody)
 	project := r.Header.Get("X-LCG-Project")
 	if project == "" {
 		project = h.defaultProject
 	}
+	tenant := defaultTenant(r.Context())
 
 	// Budget pre-check
 	if h.denyOnExceed {
-		if checkErr := h.tracker.CheckBudgetForProject(r.Context(), project); checkErr != nil {
+		if checkErr := h.tracker.CheckBudgetForProject(r.Context(), tenant, project); checkErr != nil {
 			http.Error(w, fmt.Sprintf("budget exceeded: %v", checkErr), http.StatusPaymentRequired)
 			return
 		}
@@ -109,9 +114,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.Header.Del("X-LCG-Target")
 			req.Header.Del("X-LCG-Provider")
 			req.Header.Del("X-LCG-Project")
+			req.Header.Del("X-LCG-API-Key")
+			req.Header.Del("X-LCG-Tenant")
 		},
 		ModifyResponse: func(resp *http.Response) error {
-			return h.captureResponse(resp, provider, reqInfo, project, start)
+			return h.captureResponse(r.Context(), resp, provider, reqInfo, tenant, project, streamingRequest, start)
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			h.logger.Error("proxy error", "error", err, "target", targetURL)
@@ -123,7 +130,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // captureResponse reads the upstream response, extracts usage, calculates cost, and injects headers.
-func (h *Handler) captureResponse(resp *http.Response, provider string, reqInfo *RequestInfo, project string, start time.Time) error {
+func (h *Handler) captureResponse(ctx context.Context, resp *http.Response, provider string, reqInfo *RequestInfo, tenant, project string, streamingRequest bool, start time.Time) error {
+	if streamingRequest || isStreamingContentType(resp.Header.Get("Content-Type")) {
+		return h.captureStreamingResponse(ctx, resp, provider, reqInfo, tenant, project, start)
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("read response body: %w", err)
@@ -151,15 +162,17 @@ func (h *Handler) captureResponse(resp *http.Response, provider string, reqInfo 
 	// Record usage
 	record := &tracker.UsageRecord{
 		ID:           uuid.New().String(),
+		Tenant:       tenant,
 		Provider:     provider,
 		Model:        model,
 		InputTokens:  usage.InputTokens,
 		OutputTokens: usage.OutputTokens,
 		Project:      project,
+		Metadata:     usageMetadataJSON(reqInfo, usage, false),
 		Timestamp:    time.Now().UTC(),
 	}
 
-	if trackErr := h.tracker.TrackWithTokens(context.Background(), record); trackErr != nil {
+	if trackErr := h.tracker.TrackWithTokens(ctx, record); trackErr != nil {
 		h.logger.Error("failed to record usage", "error", trackErr)
 	}
 
@@ -179,4 +192,65 @@ func (h *Handler) captureResponse(resp *http.Response, provider string, reqInfo 
 	resp.ContentLength = int64(len(body))
 
 	return nil
+}
+
+func defaultTenant(ctx context.Context) string {
+	if identity, ok := httpauth.IdentityFromContext(ctx); ok && identity.Tenant.Slug != "" {
+		return identity.Tenant.Slug
+	}
+	return "default"
+}
+
+func usageMetadataJSON(reqInfo *RequestInfo, usage *ResponseUsage, streaming bool) string {
+	if reqInfo == nil || usage == nil {
+		return "{}"
+	}
+
+	metadata := model.UsageMetadata{
+		PromptChars:            len(strings.TrimSpace(reqInfo.Messages)),
+		PromptTokensEstimate:   usage.InputTokens,
+		SystemPromptChars:      reqInfo.SystemChars,
+		MessageCount:           reqInfo.MessageCount,
+		RepeatedLineRatio:      repeatedLineRatio(reqInfo.Messages),
+		LargeStaticContext:     len(reqInfo.Messages) >= 6000 || reqInfo.SystemChars >= 1200,
+		CachedContextCandidate: reqInfo.SystemChars >= 600 || len(reqInfo.Messages) >= 4000,
+		InputOutputRatio:       safeRatio(float64(usage.InputTokens), float64(usage.OutputTokens)),
+		Streaming:              streaming,
+	}
+
+	payload, err := json.Marshal(metadata)
+	if err != nil {
+		return "{}"
+	}
+	return string(payload)
+}
+
+func repeatedLineRatio(content string) float64 {
+	lines := strings.FieldsFunc(content, func(r rune) bool {
+		return r == '\n' || r == '\r'
+	})
+	if len(lines) == 0 {
+		return 0
+	}
+
+	seen := make(map[string]int)
+	repeated := 0
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		seen[line]++
+		if seen[line] > 1 {
+			repeated++
+		}
+	}
+	return float64(repeated) / float64(len(lines))
+}
+
+func safeRatio(numerator, denominator float64) float64 {
+	if denominator <= 0 {
+		return numerator
+	}
+	return numerator / denominator
 }

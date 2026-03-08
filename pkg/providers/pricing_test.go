@@ -93,3 +93,102 @@ models:
 	assert.Equal(t, "bytes-test", cfg.Provider)
 	assert.Len(t, cfg.Models, 1)
 }
+
+func TestNewProviderFromFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "vertex-ai.yaml")
+	data := []byte(`
+provider: vertex-ai
+models:
+  - model: gemini-1.5-pro
+    input_per_million: 1.25
+    output_per_million: 5.00
+`)
+	require.NoError(t, os.WriteFile(path, data, 0o644))
+
+	provider, err := providers.NewProviderFromFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "vertex-ai", provider.Name())
+	assert.True(t, provider.SupportsModel("gemini-1.5-pro"))
+}
+
+func TestTypedProvidersFromFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		data     string
+		load     func(string) (providers.Provider, error)
+	}{
+		{
+			name:     "openai",
+			filename: "openai.yaml",
+			data: `
+provider: openai
+models:
+  - model: gpt-4o
+    input_per_million: 2.50
+    output_per_million: 10.00
+`,
+			load: func(path string) (providers.Provider, error) { return providers.NewOpenAIFromFile(path) },
+		},
+		{
+			name:     "anthropic",
+			filename: "anthropic.yaml",
+			data: `
+provider: anthropic
+models:
+  - model: claude-3.5-sonnet
+    input_per_million: 3.00
+    output_per_million: 15.00
+`,
+			load: func(path string) (providers.Provider, error) { return providers.NewAnthropicFromFile(path) },
+		},
+		{
+			name:     "azure-openai",
+			filename: "azure-openai.yaml",
+			data: `
+provider: azure-openai
+models:
+  - model: gpt-4o
+    input_per_million: 2.50
+    output_per_million: 10.00
+`,
+			load: func(path string) (providers.Provider, error) { return providers.NewAzureOpenAIFromFile(path) },
+		},
+		{
+			name:     "bedrock",
+			filename: "bedrock.yaml",
+			data: `
+provider: bedrock
+models:
+  - model: anthropic.claude-3-5-sonnet-20241022-v2:0
+    input_per_million: 3.00
+    output_per_million: 15.00
+`,
+			load: func(path string) (providers.Provider, error) { return providers.NewBedrockFromFile(path) },
+		},
+		{
+			name:     "vertex-ai",
+			filename: "vertex-ai.yaml",
+			data: `
+provider: vertex-ai
+models:
+  - model: gemini-1.5-pro
+    input_per_million: 1.25
+    output_per_million: 5.00
+`,
+			load: func(path string) (providers.Provider, error) { return providers.NewVertexAIFromFile(path) },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), tt.filename)
+			require.NoError(t, os.WriteFile(path, []byte(tt.data), 0o644))
+
+			provider, err := tt.load(path)
+			require.NoError(t, err)
+			assert.Equal(t, tt.name, provider.Name())
+		})
+	}
+}

@@ -75,3 +75,40 @@ func TestRegistry_FindProviderForModel(t *testing.T) {
 	_, err = r.FindProviderForModel("unknown-model")
 	assert.Error(t, err)
 }
+
+func TestNewProvider_SupportedProviders(t *testing.T) {
+	tests := []struct {
+		name     string
+		provider string
+		model    string
+	}{
+		{name: "openai", provider: "openai", model: "gpt-4o"},
+		{name: "anthropic", provider: "anthropic", model: "claude-3.5-sonnet"},
+		{name: "azure-openai", provider: "azure-openai", model: "gpt-4o"},
+		{name: "bedrock", provider: "bedrock", model: "anthropic.claude-3-5-sonnet-20241022-v2:0"},
+		{name: "vertex-ai", provider: "vertex-ai", model: "gemini-1.5-pro"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider, err := providers.NewProvider(&providers.ProviderConfig{
+				Provider: tt.provider,
+				Models: []providers.ModelPricing{
+					{Model: tt.model, InputPerMillion: 1.00, OutputPerMillion: 2.00},
+				},
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tt.provider, provider.Name())
+			assert.True(t, provider.SupportsModel(tt.model))
+		})
+	}
+}
+
+func TestNewProvider_Unsupported(t *testing.T) {
+	_, err := providers.NewProvider(&providers.ProviderConfig{
+		Provider: "unknown",
+		Models:   []providers.ModelPricing{{Model: "x", InputPerMillion: 1, OutputPerMillion: 1}},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported provider")
+}

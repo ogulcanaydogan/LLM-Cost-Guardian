@@ -19,6 +19,7 @@ func init() {
 	trackCmd.Flags().StringP("model", "m", "", "Model name (e.g., gpt-4o, claude-3.5-sonnet)")
 	trackCmd.Flags().Int64("input-tokens", 0, "Number of input tokens")
 	trackCmd.Flags().Int64("output-tokens", 0, "Number of output tokens")
+	trackCmd.Flags().String("tenant", "", "Tenant slug (default from config)")
 	trackCmd.Flags().String("project", "", "Project name (default from config)")
 	_ = trackCmd.MarkFlagRequired("provider")
 	_ = trackCmd.MarkFlagRequired("model")
@@ -34,8 +35,12 @@ func runTrack(cmd *cobra.Command, _ []string) error {
 	model, _ := cmd.Flags().GetString("model")
 	inputTokens, _ := cmd.Flags().GetInt64("input-tokens")
 	outputTokens, _ := cmd.Flags().GetInt64("output-tokens")
+	tenant, _ := cmd.Flags().GetString("tenant")
 	project, _ := cmd.Flags().GetString("project")
 
+	if tenant == "" {
+		tenant = cfg.Auth.DefaultTenant
+	}
 	if project == "" {
 		project = cfg.Defaults.Project
 	}
@@ -46,13 +51,14 @@ func runTrack(cmd *cobra.Command, _ []string) error {
 	}
 	defer store.Close()
 
-	record, err := t.Track(commandContext(cmd), provider, model, inputTokens, outputTokens, project)
+	record, err := t.Track(commandContext(cmd), tenant, provider, model, inputTokens, outputTokens, project)
 	if err != nil {
 		return fmt.Errorf("track usage: %w", err)
 	}
 
 	fmt.Printf("Recorded usage:\n")
 	fmt.Printf("  ID:            %s\n", record.ID)
+	fmt.Printf("  Tenant:        %s\n", record.Tenant)
 	fmt.Printf("  Provider:      %s\n", record.Provider)
 	fmt.Printf("  Model:         %s\n", record.Model)
 	fmt.Printf("  Input tokens:  %d\n", record.InputTokens)

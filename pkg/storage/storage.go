@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"time"
 
 	"github.com/ogulcanaydogan/LLM-Cost-Guardian/pkg/model"
 )
@@ -28,6 +29,36 @@ type Storage interface {
 
 	// UpdateBudgetSpend atomically updates the current spend for a budget.
 	UpdateBudgetSpend(ctx context.Context, name string, amount float64) error
+
+	// EnsureTenant guarantees a tenant exists and returns it.
+	EnsureTenant(ctx context.Context, slug, name string) (*model.Tenant, error)
+
+	// CreateTenant creates a new tenant.
+	CreateTenant(ctx context.Context, tenant *model.Tenant) error
+
+	// GetTenant retrieves a tenant by slug.
+	GetTenant(ctx context.Context, slug string) (*model.Tenant, error)
+
+	// ListTenants returns all configured tenants.
+	ListTenants(ctx context.Context) ([]model.Tenant, error)
+
+	// DisableTenant disables a tenant.
+	DisableTenant(ctx context.Context, slug string) error
+
+	// CreateAPIKey stores a hashed API key.
+	CreateAPIKey(ctx context.Context, key *model.APIKey) error
+
+	// ListAPIKeys returns API keys, optionally filtered by tenant slug.
+	ListAPIKeys(ctx context.Context, tenant string) ([]model.APIKey, error)
+
+	// RevokeAPIKey revokes a key by id.
+	RevokeAPIKey(ctx context.Context, id string) error
+
+	// ResolveAPIKey returns an active API key and tenant by hash and updates last_used_at.
+	ResolveAPIKey(ctx context.Context, keyHash string) (*model.APIKey, *model.Tenant, error)
+
+	// QueryUsageRollups returns aggregated hourly or daily usage buckets.
+	QueryUsageRollups(ctx context.Context, filter model.ReportFilter, granularity string, start, end time.Time) ([]model.UsageRollup, error)
 
 	// Close releases resources.
 	Close() error

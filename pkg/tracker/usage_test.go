@@ -32,7 +32,7 @@ func TestUsageTracker_Track(t *testing.T) {
 	ut, _ := newTestTracker(t)
 	ctx := context.Background()
 
-	record, err := ut.Track(ctx, "openai", "gpt-4o", 1000, 500, "test-project")
+	record, err := ut.Track(ctx, "default", "openai", "gpt-4o", 1000, 500, "test-project")
 	require.NoError(t, err)
 	assert.NotEmpty(t, record.ID)
 	assert.Equal(t, "openai", record.Provider)
@@ -41,13 +41,14 @@ func TestUsageTracker_Track(t *testing.T) {
 	assert.Equal(t, int64(500), record.OutputTokens)
 	assert.Greater(t, record.CostUSD, 0.0)
 	assert.Equal(t, "test-project", record.Project)
+	assert.Equal(t, "default", record.Tenant)
 }
 
 func TestUsageTracker_Track_UnknownProvider(t *testing.T) {
 	ut, _ := newTestTracker(t)
 	ctx := context.Background()
 
-	_, err := ut.Track(ctx, "unknown", "model", 100, 50, "test")
+	_, err := ut.Track(ctx, "default", "unknown", "model", 100, 50, "test")
 	assert.Error(t, err)
 }
 
@@ -58,6 +59,7 @@ func TestUsageTracker_TrackWithTokens(t *testing.T) {
 	record := &model.UsageRecord{
 		Provider:     "openai",
 		Model:        "gpt-4o",
+		Tenant:       "default",
 		InputTokens:  500,
 		OutputTokens: 200,
 		Project:      "test",
@@ -76,6 +78,7 @@ func TestUsageTracker_TrackWithTokens_PresetCost(t *testing.T) {
 	record := &model.UsageRecord{
 		Provider:     "openai",
 		Model:        "gpt-4o",
+		Tenant:       "default",
 		InputTokens:  500,
 		OutputTokens: 200,
 		CostUSD:      0.123,
@@ -91,9 +94,9 @@ func TestUsageTracker_Report(t *testing.T) {
 	ut, _ := newTestTracker(t)
 	ctx := context.Background()
 
-	_, err := ut.Track(ctx, "openai", "gpt-4o", 1000, 500, "test")
+	_, err := ut.Track(ctx, "default", "openai", "gpt-4o", 1000, 500, "test")
 	require.NoError(t, err)
-	_, err = ut.Track(ctx, "anthropic", "claude-3.5-sonnet", 2000, 1000, "test")
+	_, err = ut.Track(ctx, "default", "anthropic", "claude-3.5-sonnet", 2000, 1000, "test")
 	require.NoError(t, err)
 
 	summary, err := ut.Report(ctx, model.ReportFilter{})
@@ -106,9 +109,9 @@ func TestUsageTracker_Query(t *testing.T) {
 	ut, _ := newTestTracker(t)
 	ctx := context.Background()
 
-	_, err := ut.Track(ctx, "openai", "gpt-4o", 1000, 500, "proj-a")
+	_, err := ut.Track(ctx, "default", "openai", "gpt-4o", 1000, 500, "proj-a")
 	require.NoError(t, err)
-	_, err = ut.Track(ctx, "openai", "gpt-4o-mini", 500, 200, "proj-b")
+	_, err = ut.Track(ctx, "default", "openai", "gpt-4o-mini", 500, 200, "proj-b")
 	require.NoError(t, err)
 
 	records, err := ut.Query(ctx, model.ReportFilter{Project: "proj-a"})
@@ -131,24 +134,27 @@ func TestUsageTracker_Track_ProjectScopedBudgets(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Tenant:   "default",
 		Name:     "global",
 		LimitUSD: 100.00,
 		Period:   model.PeriodMonthly,
 	}))
 	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Tenant:   "default",
 		Name:     "proj-a",
 		Project:  "proj-a",
 		LimitUSD: 100.00,
 		Period:   model.PeriodMonthly,
 	}))
 	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Tenant:   "default",
 		Name:     "proj-b",
 		Project:  "proj-b",
 		LimitUSD: 100.00,
 		Period:   model.PeriodMonthly,
 	}))
 
-	record, err := ut.Track(ctx, "openai", "gpt-4o", 1000, 500, "proj-a")
+	record, err := ut.Track(ctx, "default", "openai", "gpt-4o", 1000, 500, "proj-a")
 	require.NoError(t, err)
 	assert.Greater(t, record.CostUSD, 0.0)
 
@@ -170,17 +176,20 @@ func TestUsageTracker_CheckBudgetForProject(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Tenant:   "default",
 		Name:     "global",
 		LimitUSD: 100.00,
 		Period:   model.PeriodMonthly,
 	}))
 	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Tenant:   "default",
 		Name:     "proj-a",
 		Project:  "proj-a",
 		LimitUSD: 100.00,
 		Period:   model.PeriodMonthly,
 	}))
 	require.NoError(t, store.SetBudget(ctx, &model.Budget{
+		Tenant:   "default",
 		Name:     "proj-b",
 		Project:  "proj-b",
 		LimitUSD: 50.00,
@@ -188,9 +197,9 @@ func TestUsageTracker_CheckBudgetForProject(t *testing.T) {
 	}))
 	require.NoError(t, store.UpdateBudgetSpend(ctx, "proj-b", 75.00))
 
-	require.NoError(t, ut.CheckBudgetForProject(ctx, "proj-a"))
+	require.NoError(t, ut.CheckBudgetForProject(ctx, "default", "proj-a"))
 
-	err := ut.CheckBudgetForProject(ctx, "proj-b")
+	err := ut.CheckBudgetForProject(ctx, "default", "proj-b")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "proj-b")
 }
