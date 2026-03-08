@@ -66,10 +66,7 @@ func runAnomalies(cmd *cobra.Command, _ []string) error {
 	}
 	defer store.Close()
 
-	filter, err := intelligenceFilter(cmd, cfg)
-	if err != nil {
-		return err
-	}
+	filter := intelligenceFilter(cmd, cfg)
 
 	anomalies, err := t.DetectAnomalies(commandContext(cmd), filter)
 	if err != nil {
@@ -105,10 +102,7 @@ func runForecast(cmd *cobra.Command, _ []string) error {
 	}
 	defer store.Close()
 
-	filter, err := intelligenceFilter(cmd, cfg)
-	if err != nil {
-		return err
-	}
+	filter := intelligenceFilter(cmd, cfg)
 
 	forecasts, err := t.Forecast(commandContext(cmd), filter)
 	if err != nil {
@@ -144,10 +138,7 @@ func runRecommend(cmd *cobra.Command, _ []string) error {
 	}
 	defer store.Close()
 
-	filter, err := intelligenceFilter(cmd, cfg)
-	if err != nil {
-		return err
-	}
+	filter := intelligenceFilter(cmd, cfg)
 
 	recommendations, err := t.RecommendModels(commandContext(cmd), filter)
 	if err != nil {
@@ -185,10 +176,7 @@ func runPromptOptimize(cmd *cobra.Command, _ []string) error {
 	}
 	defer store.Close()
 
-	filter, err := intelligenceFilter(cmd, cfg)
-	if err != nil {
-		return err
-	}
+	filter := intelligenceFilter(cmd, cfg)
 
 	optimizations, err := t.PromptOptimizations(commandContext(cmd), filter)
 	if err != nil {
@@ -212,7 +200,7 @@ func runPromptOptimize(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func intelligenceFilter(cmd *cobra.Command, cfg *config.Config) (tracker.ReportFilter, error) {
+func intelligenceFilter(cmd *cobra.Command, cfg *config.Config) tracker.ReportFilter {
 	tenant, _ := cmd.Flags().GetString("tenant")
 	if tenant == "" {
 		tenant = cfg.Auth.DefaultTenant
@@ -225,5 +213,5 @@ func intelligenceFilter(cmd *cobra.Command, cfg *config.Config) (tracker.ReportF
 		Project:  project,
 		Provider: provider,
 		Model:    model,
-	}, nil
+	}
 }

@@ -11,11 +11,11 @@ import (
 
 // RequestInfo holds extracted information from an LLM API request.
 type RequestInfo struct {
-	Provider    string
-	Model       string
-	Messages    string // Concatenated message content for token counting
+	Provider     string
+	Model        string
+	Messages     string // Concatenated message content for token counting
 	MessageCount int
-	SystemChars int
+	SystemChars  int
 }
 
 // ResponseUsage holds extracted token usage from an LLM API response.
@@ -26,22 +26,22 @@ type ResponseUsage struct {
 }
 
 // DetectProvider determines the provider from the request URL or path.
-func DetectProvider(host, path string) string {
+func DetectProvider(host, requestPath string) string {
 	host = strings.ToLower(host)
-	path = strings.ToLower(path)
+	requestPath = strings.ToLower(requestPath)
 
 	switch {
-	case strings.Contains(host, ".openai.azure.com") || strings.Contains(host, ".services.ai.azure.com") || strings.Contains(path, "/openai/deployments/"):
+	case strings.Contains(host, ".openai.azure.com") || strings.Contains(host, ".services.ai.azure.com") || strings.Contains(requestPath, "/openai/deployments/"):
 		return "azure-openai"
-	case strings.Contains(host, "openai.com") || strings.HasPrefix(path, "/v1/chat/completions"):
+	case strings.Contains(host, "openai.com") || strings.HasPrefix(requestPath, "/v1/chat/completions"):
 		return "openai"
-	case strings.Contains(host, "anthropic.com") || strings.HasPrefix(path, "/v1/messages"):
+	case strings.Contains(host, "anthropic.com") || strings.HasPrefix(requestPath, "/v1/messages"):
 		return "anthropic"
 	case strings.Contains(host, "bedrock-runtime.") || strings.Contains(host, "bedrock.") ||
-		(strings.Contains(path, "/model/") && (strings.Contains(path, "/converse") || strings.Contains(path, "/invoke"))):
+		(strings.Contains(requestPath, "/model/") && (strings.Contains(requestPath, "/converse") || strings.Contains(requestPath, "/invoke"))):
 		return "bedrock"
 	case strings.Contains(host, "aiplatform.googleapis.com") || strings.Contains(host, "generativelanguage.googleapis.com") ||
-		strings.Contains(path, "/publishers/google/models/"):
+		strings.Contains(requestPath, "/publishers/google/models/"):
 		return "vertex-ai"
 	default:
 		return ""

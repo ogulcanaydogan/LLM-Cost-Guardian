@@ -68,7 +68,7 @@ func (s *SlackNotifier) Send(ctx context.Context, alert Alert) error {
 		Channel: s.channel,
 		Attachments: []slackAttachment{
 			{
-				Color: color,
+				Color:  color,
 				Title:  title,
 				Fields: fields,
 				Footer: "LLM Cost Guardian",

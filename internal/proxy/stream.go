@@ -449,8 +449,8 @@ func mergeUsage(current, next *ResponseUsage) *ResponseUsage {
 		return current
 	}
 	if current == nil {
-		copy := *next
-		return &copy
+		usageCopy := *next
+		return &usageCopy
 	}
 	if next.InputTokens > current.InputTokens {
 		current.InputTokens = next.InputTokens

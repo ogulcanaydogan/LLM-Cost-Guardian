@@ -154,9 +154,9 @@ func (h *Handler) captureResponse(ctx context.Context, resp *http.Response, prov
 		return nil
 	}
 
-	model := usage.Model
-	if model == "" && reqInfo != nil {
-		model = reqInfo.Model
+	modelName := usage.Model
+	if modelName == "" && reqInfo != nil {
+		modelName = reqInfo.Model
 	}
 
 	// Record usage
@@ -164,7 +164,7 @@ func (h *Handler) captureResponse(ctx context.Context, resp *http.Response, prov
 		ID:           uuid.New().String(),
 		Tenant:       tenant,
 		Provider:     provider,
-		Model:        model,
+		Model:        modelName,
 		InputTokens:  usage.InputTokens,
 		OutputTokens: usage.OutputTokens,
 		Project:      project,
@@ -183,7 +183,7 @@ func (h *Handler) captureResponse(ctx context.Context, resp *http.Response, prov
 		resp.Header.Set("X-LLM-Input-Tokens", strconv.FormatInt(usage.InputTokens, 10))
 		resp.Header.Set("X-LLM-Output-Tokens", strconv.FormatInt(usage.OutputTokens, 10))
 		resp.Header.Set("X-LLM-Provider", provider)
-		resp.Header.Set("X-LLM-Model", model)
+		resp.Header.Set("X-LLM-Model", modelName)
 		resp.Header.Set("X-LCG-Latency", latency.String())
 	}
 

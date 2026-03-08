@@ -97,16 +97,16 @@ type APIKey struct {
 
 // UsageRollup stores an aggregated usage bucket for analytics.
 type UsageRollup struct {
-	Tenant      string    `json:"tenant"`
-	Provider    string    `json:"provider"`
-	Model       string    `json:"model"`
-	Project     string    `json:"project"`
-	Granularity string    `json:"granularity"`
-	BucketStart time.Time `json:"bucket_start"`
-	RequestCount int64    `json:"request_count"`
-	InputTokens  int64    `json:"input_tokens"`
-	OutputTokens int64    `json:"output_tokens"`
-	CostUSD      float64  `json:"cost_usd"`
+	Tenant       string    `json:"tenant"`
+	Provider     string    `json:"provider"`
+	Model        string    `json:"model"`
+	Project      string    `json:"project"`
+	Granularity  string    `json:"granularity"`
+	BucketStart  time.Time `json:"bucket_start"`
+	RequestCount int64     `json:"request_count"`
+	InputTokens  int64     `json:"input_tokens"`
+	OutputTokens int64     `json:"output_tokens"`
+	CostUSD      float64   `json:"cost_usd"`
 }
 
 // UsageAnomaly describes an abnormal cost spike.
@@ -126,13 +126,13 @@ type UsageAnomaly struct {
 
 // SpendForecast represents a cost forecast for a tenant or project.
 type SpendForecast struct {
-	Tenant             string  `json:"tenant"`
-	Project            string  `json:"project,omitempty"`
-	HorizonDays        int     `json:"horizon_days"`
-	ForecastCostUSD    float64 `json:"forecast_cost_usd"`
+	Tenant              string  `json:"tenant"`
+	Project             string  `json:"project,omitempty"`
+	HorizonDays         int     `json:"horizon_days"`
+	ForecastCostUSD     float64 `json:"forecast_cost_usd"`
 	AverageDailyCostUSD float64 `json:"average_daily_cost_usd"`
-	TrendDailyDeltaUSD float64 `json:"trend_daily_delta_usd"`
-	Confidence         string  `json:"confidence"`
+	TrendDailyDeltaUSD  float64 `json:"trend_daily_delta_usd"`
+	Confidence          string  `json:"confidence"`
 }
 
 // ModelRecommendation suggests a lower-cost alternative for a workload.

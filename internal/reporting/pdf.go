@@ -20,10 +20,7 @@ func WritePDF(path string, doc ReportDocument, detailed bool) error {
 		return err
 	}
 
-	pdfBytes, err := renderPDF(doc, detailed)
-	if err != nil {
-		return err
-	}
+	pdfBytes := renderPDF(doc, detailed)
 
 	if err := os.WriteFile(path, pdfBytes, 0o644); err != nil {
 		return fmt.Errorf("write pdf: %w", err)
@@ -31,14 +28,14 @@ func WritePDF(path string, doc ReportDocument, detailed bool) error {
 	return nil
 }
 
-func renderPDF(doc ReportDocument, detailed bool) ([]byte, error) {
+func renderPDF(doc ReportDocument, detailed bool) []byte {
 	lines := buildPDFLines(doc, detailed)
 	pages := paginatePDFLines(lines)
 	pageStreams := make([]string, 0, len(pages))
 	for i, page := range pages {
 		pageStreams = append(pageStreams, renderPDFPage(page, i+1, len(pages)))
 	}
-	return assemblePDF(pageStreams), nil
+	return assemblePDF(pageStreams)
 }
 
 func buildPDFLines(doc ReportDocument, detailed bool) []pdfLine {
@@ -60,8 +57,10 @@ func buildPDFLines(doc ReportDocument, detailed bool) []pdfLine {
 	lines = append(lines, renderChargebackSection(doc.Chargebacks)...)
 
 	if detailed {
-		lines = append(lines, pdfLine{Text: "Detailed records", Font: "F2", Size: 13})
-		lines = append(lines, pdfLine{Text: "TIMESTAMP            PROJECT          PROVIDER        MODEL                          IN       OUT       COST", Font: "F2", Size: 9})
+		lines = append(lines,
+			pdfLine{Text: "Detailed records", Font: "F2", Size: 13},
+			pdfLine{Text: "TIMESTAMP            PROJECT          PROVIDER        MODEL                          IN       OUT       COST", Font: "F2", Size: 9},
+		)
 		for _, record := range doc.Records {
 			line := fmt.Sprintf(
 				"%-20s %-16s %-14s %-30s %8d %8d %10.6f",

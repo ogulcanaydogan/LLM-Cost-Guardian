@@ -25,11 +25,11 @@ type Identity struct {
 
 // Middleware authenticates HTTP requests and injects tenant identity into context.
 type Middleware struct {
-	store        storage.Storage
-	enabled      bool
+	store         storage.Storage
+	enabled       bool
 	defaultTenant string
-	bootstrapKey string
-	logger       *slog.Logger
+	bootstrapKey  string
+	logger        *slog.Logger
 }
 
 // New creates a tenant auth middleware.
