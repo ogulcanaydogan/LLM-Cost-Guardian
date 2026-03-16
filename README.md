@@ -1,5 +1,5 @@
 <div align="center">
-[\![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12190/badge)](https://www.bestpractices.dev/projects/12190)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12190/badge)](https://www.bestpractices.dev/projects/12190)
 
 # LLM Cost Guardian
 
